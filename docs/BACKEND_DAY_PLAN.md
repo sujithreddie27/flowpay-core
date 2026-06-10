@@ -402,7 +402,7 @@ flowpay-core/
 |------|-----|--------|-------|
 | 1 | Day 1 | ⬜ | Project Init |
 | 1 | Day 2 | ⬜ | DB Migrations |
-| 1 | Day 3 | ⬜ | Entities |
+| 1 | Day 3 | ✅ | Entities |
 | 1 | Day 4 | ⬜ | DTOs & Common |
 | 1 | Day 5 | ⬜ | Docker |
 | 2 | Day 6 | ⬜ | Account Service |
