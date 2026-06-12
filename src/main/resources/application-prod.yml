@@ -26,14 +26,63 @@ spring:
     enabled: true
     validate-on-migrate: true
 
+  # Redis Configuration (for future caching implementation)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 2000ms
+
+# Kafka Configuration (for future event streaming implementation)
+spring.kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  producer:
+    key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    acks: all
+    retries: 3
+    properties:
+      enable.idempotence: true
+      max.in.flight.requests.per.connection: 5
+  consumer:
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    group-id: flowpay-consumer-group
+    auto-offset-reset: earliest
+    enable-auto-commit: false
+    properties:
+      spring.json.trusted.packages: com.flowpay.*
+
 management:
   endpoints:
     web:
       exposure:
         include: health,info,metrics,prometheus
+      base-path: /actuator
   endpoint:
     health:
       show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: production
 
 logging:
   level:
@@ -41,3 +90,10 @@ logging:
     com.flowpay: INFO
     org.springframework.web: WARN
     org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+  file:
+    name: /app/logs/flowpay-core.log
+    max-size: 100MB
+    max-history: 30
+    total-size-cap: 1GB
