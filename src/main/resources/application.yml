@@ -44,6 +44,12 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
+flowpay:
+  payment:
+    min-amount: 0.01
+    max-amount: 1000000.00
+    daily-limit-multiplier: 1.0
+
 management:
   endpoints:
     web:
