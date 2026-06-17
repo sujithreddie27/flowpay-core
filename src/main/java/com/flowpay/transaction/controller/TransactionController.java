@@ -1,0 +1,77 @@
+package com.flowpay.transaction.controller;
+
+import com.flowpay.common.dto.ApiResponse;
+import com.flowpay.common.dto.PagedResponse;
+import com.flowpay.transaction.dto.InitiateTransactionRequest;
+import com.flowpay.transaction.dto.TransactionFilterRequest;
+import com.flowpay.transaction.dto.TransactionResponse;
+import com.flowpay.transaction.service.TransactionService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1/transactions")
+@RequiredArgsConstructor
+public class TransactionController {
+
+    private final TransactionService transactionService;
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<TransactionResponse>> initiatePayment(
+            @Valid @RequestBody InitiateTransactionRequest request) {
+        TransactionResponse response = transactionService.initiatePayment(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response, "Payment initiated successfully"));
+    }
+
+    @GetMapping("/{transactionId}")
+    public ResponseEntity<ApiResponse<TransactionResponse>> getTransactionById(
+            @PathVariable UUID transactionId) {
+        TransactionResponse response = transactionService.getTransactionById(transactionId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/reference/{referenceId}")
+    public ResponseEntity<ApiResponse<TransactionResponse>> getTransactionByReferenceId(
+            @PathVariable String referenceId) {
+        TransactionResponse response = transactionService.getTransactionByReferenceId(referenceId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<PagedResponse<TransactionResponse>>> getTransactionsByUserId(
+            @PathVariable UUID userId,
+            @ModelAttribute TransactionFilterRequest filter) {
+        Page<TransactionResponse> page = transactionService.getTransactionsByUserId(userId, filter);
+        return ResponseEntity.ok(ApiResponse.success(PagedResponse.from(page)));
+    }
+
+    @GetMapping("/sender/{senderId}")
+    public ResponseEntity<ApiResponse<PagedResponse<TransactionResponse>>> getTransactionsBySenderId(
+            @PathVariable UUID senderId,
+            @ModelAttribute TransactionFilterRequest filter) {
+        Page<TransactionResponse> page = transactionService.getTransactionsBySenderId(senderId, filter);
+        return ResponseEntity.ok(ApiResponse.success(PagedResponse.from(page)));
+    }
+
+    @GetMapping("/receiver/{receiverId}")
+    public ResponseEntity<ApiResponse<PagedResponse<TransactionResponse>>> getTransactionsByReceiverId(
+            @PathVariable UUID receiverId,
+            @ModelAttribute TransactionFilterRequest filter) {
+        Page<TransactionResponse> page = transactionService.getTransactionsByReceiverId(receiverId, filter);
+        return ResponseEntity.ok(ApiResponse.success(PagedResponse.from(page)));
+    }
+
+    @PostMapping("/{transactionId}/cancel")
+    public ResponseEntity<ApiResponse<TransactionResponse>> cancelTransaction(
+            @PathVariable UUID transactionId) {
+        TransactionResponse response = transactionService.cancelTransaction(transactionId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Transaction cancelled successfully"));
+    }
+}
