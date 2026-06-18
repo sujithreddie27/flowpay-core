@@ -11,6 +11,7 @@ import com.flowpay.transaction.entity.Transaction;
 import com.flowpay.transaction.mapper.TransactionMapper;
 import com.flowpay.transaction.repository.AccountRepository;
 import com.flowpay.transaction.repository.TransactionRepository;
+import com.flowpay.transaction.statemachine.TransactionStatusMachine;
 import com.flowpay.transaction.validation.PaymentValidationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +22,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -51,6 +53,12 @@ class TransactionServiceImplTest {
 
     @Mock
     private TransactionMapper transactionMapper;
+
+    @Spy
+    private TransactionStatusMachine statusMachine = new TransactionStatusMachine();
+
+    @Mock
+    private FailedTransactionHandler failedTransactionHandler;
 
     @InjectMocks
     private TransactionServiceImpl transactionService;
@@ -522,8 +530,7 @@ class TransactionServiceImplTest {
             when(transactionRepository.findById(txnId)).thenReturn(Optional.of(transaction));
 
             assertThatThrownBy(() -> transactionService.cancelTransaction(txnId))
-                    .isInstanceOf(PaymentException.class)
-                    .hasMessageContaining("Cannot cancel transaction in terminal state");
+                    .isInstanceOf(InvalidStateTransitionException.class);
         }
 
         @Test
@@ -534,6 +541,286 @@ class TransactionServiceImplTest {
 
             assertThatThrownBy(() -> transactionService.cancelTransaction(txnId))
                     .isInstanceOf(TransactionNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("retryTransaction")
+    class RetryTransaction {
+
+        @Test
+        @DisplayName("should retry failed transaction successfully")
+        void shouldRetryFailedTransactionSuccessfully() {
+            UUID txnId = UUID.randomUUID();
+            Transaction failedTransaction = Transaction.builder()
+                    .referenceId("TXN-RETRY")
+                    .sender(senderUser)
+                    .receiver(receiverUser)
+                    .senderAccount(senderAccount)
+                    .receiverAccount(receiverAccount)
+                    .amount(new BigDecimal("100.00"))
+                    .currency("USD")
+                    .type(TransactionType.TRANSFER)
+                    .status(TransactionStatus.FAILED)
+                    .retryCount(1)
+                    .build();
+            failedTransaction.setId(txnId);
+
+            TransactionResponse retryResponse = TransactionResponse.builder()
+                    .id(txnId)
+                    .status(TransactionStatus.COMPLETED)
+                    .build();
+
+            when(transactionRepository.findById(txnId)).thenReturn(Optional.of(failedTransaction));
+            when(failedTransactionHandler.isRetryExhausted(failedTransaction)).thenReturn(false);
+            when(transactionRepository.save(any(Transaction.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+            when(accountRepository.findByIdWithLock(senderAccount.getId()))
+                    .thenReturn(Optional.of(senderAccount));
+            when(accountRepository.findByIdWithLock(receiverAccount.getId()))
+                    .thenReturn(Optional.of(receiverAccount));
+            when(accountRepository.save(any(Account.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+            when(transactionMapper.toResponse(any(Transaction.class))).thenReturn(retryResponse);
+
+            TransactionResponse result = transactionService.retryTransaction(txnId);
+
+            assertThat(result.getStatus()).isEqualTo(TransactionStatus.COMPLETED);
+            verify(transactionRepository, atLeast(3)).save(any(Transaction.class));
+        }
+
+        @Test
+        @DisplayName("should throw when transaction not in FAILED state")
+        void shouldThrowWhenNotFailed() {
+            UUID txnId = UUID.randomUUID();
+            Transaction completedTransaction = Transaction.builder()
+                    .referenceId("TXN-COMP")
+                    .sender(senderUser)
+                    .receiver(receiverUser)
+                    .senderAccount(senderAccount)
+                    .receiverAccount(receiverAccount)
+                    .amount(new BigDecimal("100.00"))
+                    .currency("USD")
+                    .type(TransactionType.TRANSFER)
+                    .status(TransactionStatus.COMPLETED)
+                    .retryCount(0)
+                    .build();
+            completedTransaction.setId(txnId);
+
+            when(transactionRepository.findById(txnId)).thenReturn(Optional.of(completedTransaction));
+
+            assertThatThrownBy(() -> transactionService.retryTransaction(txnId))
+                    .isInstanceOf(TransactionNotRetryableException.class);
+        }
+
+        @Test
+        @DisplayName("should throw when max retries exhausted")
+        void shouldThrowWhenMaxRetriesExhausted() {
+            UUID txnId = UUID.randomUUID();
+            Transaction exhaustedTransaction = Transaction.builder()
+                    .referenceId("TXN-EXHAUSTED")
+                    .sender(senderUser)
+                    .receiver(receiverUser)
+                    .senderAccount(senderAccount)
+                    .receiverAccount(receiverAccount)
+                    .amount(new BigDecimal("100.00"))
+                    .currency("USD")
+                    .type(TransactionType.TRANSFER)
+                    .status(TransactionStatus.FAILED)
+                    .retryCount(3)
+                    .build();
+            exhaustedTransaction.setId(txnId);
+
+            when(transactionRepository.findById(txnId)).thenReturn(Optional.of(exhaustedTransaction));
+            when(failedTransactionHandler.isRetryExhausted(exhaustedTransaction)).thenReturn(true);
+
+            assertThatThrownBy(() -> transactionService.retryTransaction(txnId))
+                    .isInstanceOf(TransactionNotRetryableException.class)
+                    .hasMessageContaining("Maximum retry attempts");
+        }
+
+        @Test
+        @DisplayName("should throw when transaction not found for retry")
+        void shouldThrowWhenNotFoundForRetry() {
+            UUID txnId = UUID.randomUUID();
+            when(transactionRepository.findById(txnId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> transactionService.retryTransaction(txnId))
+                    .isInstanceOf(TransactionNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("reverseTransaction")
+    class ReverseTransaction {
+
+        @Test
+        @DisplayName("should reverse completed transaction")
+        void shouldReverseCompletedTransaction() {
+            UUID txnId = UUID.randomUUID();
+            Transaction completedTransaction = Transaction.builder()
+                    .referenceId("TXN-REV")
+                    .sender(senderUser)
+                    .receiver(receiverUser)
+                    .senderAccount(senderAccount)
+                    .receiverAccount(receiverAccount)
+                    .amount(new BigDecimal("100.00"))
+                    .currency("USD")
+                    .type(TransactionType.TRANSFER)
+                    .status(TransactionStatus.COMPLETED)
+                    .retryCount(0)
+                    .build();
+            completedTransaction.setId(txnId);
+
+            TransactionResponse reversedResponse = TransactionResponse.builder()
+                    .id(txnId)
+                    .status(TransactionStatus.REVERSED)
+                    .build();
+
+            when(transactionRepository.findById(txnId)).thenReturn(Optional.of(completedTransaction));
+            when(accountRepository.findByIdWithLock(senderAccount.getId()))
+                    .thenReturn(Optional.of(senderAccount));
+            when(accountRepository.findByIdWithLock(receiverAccount.getId()))
+                    .thenReturn(Optional.of(receiverAccount));
+            when(accountRepository.save(any(Account.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+            when(transactionRepository.save(any(Transaction.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+            when(transactionMapper.toResponse(any(Transaction.class))).thenReturn(reversedResponse);
+
+            TransactionResponse result = transactionService.reverseTransaction(txnId, "Fraud detected");
+
+            assertThat(result.getStatus()).isEqualTo(TransactionStatus.REVERSED);
+            verify(accountRepository, times(2)).save(any(Account.class));
+            verify(transactionRepository).save(transactionCaptor.capture());
+            assertThat(transactionCaptor.getValue().getFailureReason()).isEqualTo("Fraud detected");
+        }
+
+        @Test
+        @DisplayName("should throw when reversing non-completed transaction")
+        void shouldThrowWhenReversingNonCompleted() {
+            UUID txnId = UUID.randomUUID();
+            Transaction pendingTransaction = Transaction.builder()
+                    .referenceId("TXN-PEND")
+                    .sender(senderUser)
+                    .receiver(receiverUser)
+                    .senderAccount(senderAccount)
+                    .receiverAccount(receiverAccount)
+                    .amount(new BigDecimal("100.00"))
+                    .currency("USD")
+                    .type(TransactionType.TRANSFER)
+                    .status(TransactionStatus.PENDING)
+                    .retryCount(0)
+                    .build();
+            pendingTransaction.setId(txnId);
+
+            when(transactionRepository.findById(txnId)).thenReturn(Optional.of(pendingTransaction));
+
+            assertThatThrownBy(() -> transactionService.reverseTransaction(txnId, "Error"))
+                    .isInstanceOf(InvalidStateTransitionException.class);
+        }
+
+        @Test
+        @DisplayName("should throw when transaction not found for reversal")
+        void shouldThrowWhenNotFoundForReversal() {
+            UUID txnId = UUID.randomUUID();
+            when(transactionRepository.findById(txnId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> transactionService.reverseTransaction(txnId, "Error"))
+                    .isInstanceOf(TransactionNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("getRetryableTransactions")
+    class GetRetryableTransactions {
+
+        @Test
+        @DisplayName("should return list of retryable transactions")
+        void shouldReturnRetryableTransactions() {
+            Transaction failedTxn = Transaction.builder()
+                    .referenceId("TXN-FAIL1")
+                    .sender(senderUser)
+                    .receiver(receiverUser)
+                    .senderAccount(senderAccount)
+                    .receiverAccount(receiverAccount)
+                    .amount(new BigDecimal("50.00"))
+                    .currency("USD")
+                    .type(TransactionType.TRANSFER)
+                    .status(TransactionStatus.FAILED)
+                    .retryCount(1)
+                    .build();
+            failedTxn.setId(UUID.randomUUID());
+
+            TransactionResponse failedResponse = TransactionResponse.builder()
+                    .id(failedTxn.getId())
+                    .status(TransactionStatus.FAILED)
+                    .build();
+
+            when(transactionRepository.findRetryableTransactions()).thenReturn(List.of(failedTxn));
+            when(transactionMapper.toResponse(failedTxn)).thenReturn(failedResponse);
+
+            List<TransactionResponse> result = transactionService.getRetryableTransactions();
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getStatus()).isEqualTo(TransactionStatus.FAILED);
+        }
+
+        @Test
+        @DisplayName("should return empty list when no retryable transactions")
+        void shouldReturnEmptyListWhenNone() {
+            when(transactionRepository.findRetryableTransactions()).thenReturn(List.of());
+
+            List<TransactionResponse> result = transactionService.getRetryableTransactions();
+
+            assertThat(result).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("processStalePendingTransactions")
+    class ProcessStalePendingTransactions {
+
+        @Test
+        @DisplayName("should mark stale pending transactions as failed")
+        void shouldMarkStaleTransactionsAsFailed() {
+            Transaction staleTxn = Transaction.builder()
+                    .referenceId("TXN-STALE")
+                    .sender(senderUser)
+                    .receiver(receiverUser)
+                    .senderAccount(senderAccount)
+                    .receiverAccount(receiverAccount)
+                    .amount(new BigDecimal("75.00"))
+                    .currency("USD")
+                    .type(TransactionType.TRANSFER)
+                    .status(TransactionStatus.PENDING)
+                    .retryCount(0)
+                    .build();
+            staleTxn.setId(UUID.randomUUID());
+
+            when(transactionRepository.findStalePendingTransactions(any(OffsetDateTime.class)))
+                    .thenReturn(List.of(staleTxn));
+            when(transactionRepository.save(any(Transaction.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+
+            int processed = transactionService.processStalePendingTransactions();
+
+            assertThat(processed).isEqualTo(1);
+            verify(transactionRepository).save(transactionCaptor.capture());
+            assertThat(transactionCaptor.getValue().getStatus()).isEqualTo(TransactionStatus.FAILED);
+            verify(failedTransactionHandler).moveToDeadLetter(any(), any(), eq(false));
+        }
+
+        @Test
+        @DisplayName("should return 0 when no stale transactions")
+        void shouldReturnZeroWhenNoStale() {
+            when(transactionRepository.findStalePendingTransactions(any(OffsetDateTime.class)))
+                    .thenReturn(List.of());
+
+            int processed = transactionService.processStalePendingTransactions();
+
+            assertThat(processed).isEqualTo(0);
+            verify(transactionRepository, never()).save(any());
         }
     }
 }

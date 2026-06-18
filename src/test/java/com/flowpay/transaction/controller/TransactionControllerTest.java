@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flowpay.common.enums.TransactionStatus;
 import com.flowpay.common.enums.TransactionType;
 import com.flowpay.common.exception.GlobalExceptionHandler;
+import com.flowpay.common.exception.InvalidStateTransitionException;
 import com.flowpay.common.exception.PaymentException;
 import com.flowpay.common.exception.ResourceNotFoundException;
 import com.flowpay.common.exception.TransactionNotFoundException;
+import com.flowpay.common.exception.TransactionNotRetryableException;
 import com.flowpay.transaction.dto.InitiateTransactionRequest;
 import com.flowpay.transaction.dto.TransactionResponse;
 import com.flowpay.transaction.service.TransactionService;
@@ -191,5 +193,88 @@ class TransactionControllerTest {
         mockMvc.perform(post("/api/v1/transactions/{id}/cancel", transactionId))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/transactions/{id}/retry - should retry failed transaction")
+    void shouldRetryFailedTransaction() throws Exception {
+        TransactionResponse retried = buildTransactionResponse();
+        retried.setStatus(TransactionStatus.COMPLETED);
+
+        when(transactionService.retryTransaction(transactionId)).thenReturn(retried);
+
+        mockMvc.perform(post("/api/v1/transactions/{id}/retry", transactionId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Transaction retry initiated successfully"))
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/transactions/{id}/retry - should return 422 when not retryable")
+    void shouldReturn422WhenNotRetryable() throws Exception {
+        when(transactionService.retryTransaction(transactionId))
+                .thenThrow(new TransactionNotRetryableException(transactionId, "Transaction is in COMPLETED state"));
+
+        mockMvc.perform(post("/api/v1/transactions/{id}/retry", transactionId))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/transactions/{id}/reverse - should reverse completed transaction")
+    void shouldReverseCompletedTransaction() throws Exception {
+        TransactionResponse reversed = buildTransactionResponse();
+        reversed.setStatus(TransactionStatus.REVERSED);
+
+        when(transactionService.reverseTransaction(eq(transactionId), any(String.class)))
+                .thenReturn(reversed);
+
+        mockMvc.perform(post("/api/v1/transactions/{id}/reverse", transactionId)
+                        .param("reason", "Fraud detected"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Transaction reversed successfully"))
+                .andExpect(jsonPath("$.data.status").value("REVERSED"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/transactions/{id}/reverse - should return 409 for invalid state")
+    void shouldReturn409WhenReversingNonCompleted() throws Exception {
+        when(transactionService.reverseTransaction(eq(transactionId), any(String.class)))
+                .thenThrow(new InvalidStateTransitionException(
+                        TransactionStatus.PENDING, TransactionStatus.REVERSED));
+
+        mockMvc.perform(post("/api/v1/transactions/{id}/reverse", transactionId)
+                        .param("reason", "Error"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/transactions/retryable - should return retryable transactions")
+    void shouldGetRetryableTransactions() throws Exception {
+        TransactionResponse failed = buildTransactionResponse();
+        failed.setStatus(TransactionStatus.FAILED);
+
+        when(transactionService.getRetryableTransactions()).thenReturn(List.of(failed));
+
+        mockMvc.perform(get("/api/v1/transactions/retryable"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data[0].status").value("FAILED"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/transactions/stale/process - should process stale transactions")
+    void shouldProcessStalePendingTransactions() throws Exception {
+        when(transactionService.processStalePendingTransactions()).thenReturn(3);
+
+        mockMvc.perform(post("/api/v1/transactions/stale/process"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.processedCount").value(3))
+                .andExpect(jsonPath("$.message").value("Stale pending transactions processed"));
     }
 }

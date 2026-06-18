@@ -13,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -73,5 +75,35 @@ public class TransactionController {
             @PathVariable UUID transactionId) {
         TransactionResponse response = transactionService.cancelTransaction(transactionId);
         return ResponseEntity.ok(ApiResponse.success(response, "Transaction cancelled successfully"));
+    }
+
+    @PostMapping("/{transactionId}/retry")
+    public ResponseEntity<ApiResponse<TransactionResponse>> retryTransaction(
+            @PathVariable UUID transactionId) {
+        TransactionResponse response = transactionService.retryTransaction(transactionId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Transaction retry initiated successfully"));
+    }
+
+    @PostMapping("/{transactionId}/reverse")
+    public ResponseEntity<ApiResponse<TransactionResponse>> reverseTransaction(
+            @PathVariable UUID transactionId,
+            @RequestParam(required = false, defaultValue = "Manual reversal") String reason) {
+        TransactionResponse response = transactionService.reverseTransaction(transactionId, reason);
+        return ResponseEntity.ok(ApiResponse.success(response, "Transaction reversed successfully"));
+    }
+
+    @GetMapping("/retryable")
+    public ResponseEntity<ApiResponse<List<TransactionResponse>>> getRetryableTransactions() {
+        List<TransactionResponse> retryable = transactionService.getRetryableTransactions();
+        return ResponseEntity.ok(ApiResponse.success(retryable));
+    }
+
+    @PostMapping("/stale/process")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> processStalePendingTransactions() {
+        int processed = transactionService.processStalePendingTransactions();
+        return ResponseEntity.ok(ApiResponse.success(
+                Map.of("processedCount", processed),
+                "Stale pending transactions processed"
+        ));
     }
 }

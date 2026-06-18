@@ -5,6 +5,7 @@ import com.flowpay.transaction.dto.TransactionFilterRequest;
 import com.flowpay.transaction.dto.TransactionResponse;
 import org.springframework.data.domain.Page;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface TransactionService {
@@ -22,4 +23,12 @@ public interface TransactionService {
     Page<TransactionResponse> getTransactionsByReceiverId(UUID receiverId, TransactionFilterRequest filter);
 
     TransactionResponse cancelTransaction(UUID transactionId);
+
+    TransactionResponse retryTransaction(UUID transactionId);
+
+    TransactionResponse reverseTransaction(UUID transactionId, String reason);
+
+    List<TransactionResponse> getRetryableTransactions();
+
+    int processStalePendingTransactions();
 }

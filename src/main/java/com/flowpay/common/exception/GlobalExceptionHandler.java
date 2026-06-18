@@ -142,6 +142,28 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
+    @ExceptionHandler(InvalidStateTransitionException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidStateTransition(InvalidStateTransitionException ex) {
+        log.warn("Invalid state transition: {}", ex.getMessage());
+        ApiResponse.ErrorDetails errorDetails = ApiResponse.ErrorDetails.builder()
+                .code(ex.getErrorCode())
+                .details(ex.getMessage())
+                .build();
+        ApiResponse<Void> response = ApiResponse.error("Invalid state transition", errorDetails);
+        return ResponseEntity.status(ex.getHttpStatus()).body(response);
+    }
+
+    @ExceptionHandler(TransactionNotRetryableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTransactionNotRetryable(TransactionNotRetryableException ex) {
+        log.warn("Transaction not retryable: {}", ex.getMessage());
+        ApiResponse.ErrorDetails errorDetails = ApiResponse.ErrorDetails.builder()
+                .code(ex.getErrorCode())
+                .details(ex.getMessage())
+                .build();
+        ApiResponse<Void> response = ApiResponse.error("Transaction cannot be retried", errorDetails);
+        return ResponseEntity.status(ex.getHttpStatus()).body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
         log.error("Unexpected error occurred", ex);
