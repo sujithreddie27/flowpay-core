@@ -2,17 +2,17 @@ package com.flowpay.transaction.controller;
 
 import com.flowpay.common.dto.ApiResponse;
 import com.flowpay.common.dto.PagedResponse;
-import com.flowpay.transaction.dto.InitiateTransactionRequest;
-import com.flowpay.transaction.dto.TransactionFilterRequest;
-import com.flowpay.transaction.dto.TransactionResponse;
+import com.flowpay.transaction.dto.*;
 import com.flowpay.transaction.service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -96,6 +96,29 @@ public class TransactionController {
     public ResponseEntity<ApiResponse<List<TransactionResponse>>> getRetryableTransactions() {
         List<TransactionResponse> retryable = transactionService.getRetryableTransactions();
         return ResponseEntity.ok(ApiResponse.success(retryable));
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<ApiResponse<PagedResponse<TransactionResponse>>> getTransactionHistory(
+            @ModelAttribute TransactionFilterRequest filter) {
+        Page<TransactionResponse> page = transactionService.getTransactionHistory(filter);
+        return ResponseEntity.ok(ApiResponse.success(PagedResponse.from(page)));
+    }
+
+    @GetMapping("/summary/{userId}")
+    public ResponseEntity<ApiResponse<TransactionSummaryResponse>> getTransactionSummary(
+            @PathVariable UUID userId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
+        TransactionSummaryResponse summary = transactionService.getTransactionSummary(userId, from, to);
+        return ResponseEntity.ok(ApiResponse.success(summary));
+    }
+
+    @GetMapping("/{transactionId}/receipt")
+    public ResponseEntity<ApiResponse<TransactionReceiptResponse>> getTransactionReceipt(
+            @PathVariable UUID transactionId) {
+        TransactionReceiptResponse receipt = transactionService.getTransactionReceipt(transactionId);
+        return ResponseEntity.ok(ApiResponse.success(receipt));
     }
 
     @PostMapping("/stale/process")

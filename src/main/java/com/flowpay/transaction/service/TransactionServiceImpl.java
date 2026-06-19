@@ -1,15 +1,15 @@
 package com.flowpay.transaction.service;
 
 import com.flowpay.common.enums.TransactionStatus;
+import com.flowpay.common.enums.TransactionType;
 import com.flowpay.common.exception.*;
-import com.flowpay.transaction.dto.InitiateTransactionRequest;
-import com.flowpay.transaction.dto.TransactionFilterRequest;
-import com.flowpay.transaction.dto.TransactionResponse;
+import com.flowpay.transaction.dto.*;
 import com.flowpay.transaction.entity.Account;
 import com.flowpay.transaction.entity.Transaction;
 import com.flowpay.transaction.mapper.TransactionMapper;
 import com.flowpay.transaction.repository.AccountRepository;
 import com.flowpay.transaction.repository.TransactionRepository;
+import com.flowpay.transaction.specification.TransactionSpecification;
 import com.flowpay.transaction.statemachine.TransactionStatusMachine;
 import com.flowpay.transaction.validation.PaymentValidationService;
 import lombok.RequiredArgsConstructor;
@@ -19,16 +19,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -283,7 +283,9 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional(readOnly = true)
     public Page<TransactionResponse> getTransactionsByUserId(UUID userId, TransactionFilterRequest filter) {
         Pageable pageable = buildPageable(filter);
-        Page<Transaction> transactions = transactionRepository.findByUserId(userId, pageable);
+        Specification<Transaction> spec = Specification.where(TransactionSpecification.userInvolved(userId))
+                .and(TransactionSpecification.withFilters(filter));
+        Page<Transaction> transactions = transactionRepository.findAll(spec, pageable);
         return transactions.map(transactionMapper::toResponse);
     }
 
@@ -291,7 +293,9 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional(readOnly = true)
     public Page<TransactionResponse> getTransactionsBySenderId(UUID senderId, TransactionFilterRequest filter) {
         Pageable pageable = buildPageable(filter);
-        Page<Transaction> transactions = transactionRepository.findBySenderId(senderId, pageable);
+        Specification<Transaction> spec = Specification.where(TransactionSpecification.bySenderId(senderId))
+                .and(TransactionSpecification.withFilters(filter));
+        Page<Transaction> transactions = transactionRepository.findAll(spec, pageable);
         return transactions.map(transactionMapper::toResponse);
     }
 
@@ -299,8 +303,111 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional(readOnly = true)
     public Page<TransactionResponse> getTransactionsByReceiverId(UUID receiverId, TransactionFilterRequest filter) {
         Pageable pageable = buildPageable(filter);
-        Page<Transaction> transactions = transactionRepository.findByReceiverId(receiverId, pageable);
+        Specification<Transaction> spec = Specification.where(TransactionSpecification.byReceiverId(receiverId))
+                .and(TransactionSpecification.withFilters(filter));
+        Page<Transaction> transactions = transactionRepository.findAll(spec, pageable);
         return transactions.map(transactionMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TransactionResponse> getTransactionHistory(TransactionFilterRequest filter) {
+        Pageable pageable = buildPageable(filter);
+        Specification<Transaction> spec = TransactionSpecification.withFilters(filter);
+        Page<Transaction> transactions = transactionRepository.findAll(spec, pageable);
+        return transactions.map(transactionMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TransactionSummaryResponse getTransactionSummary(UUID userId, OffsetDateTime from, OffsetDateTime to) {
+        log.info("Generating transaction summary for user={}, from={}, to={}", userId, from, to);
+
+        Specification<Transaction> baseSpec = TransactionSpecification.userInvolved(userId)
+                .and(TransactionSpecification.byDateRange(from, to));
+
+        List<Transaction> transactions = transactionRepository.findAll(baseSpec);
+
+        long completedCount = 0;
+        long failedCount = 0;
+        long pendingCount = 0;
+        long cancelledCount = 0;
+        BigDecimal totalSent = BigDecimal.ZERO;
+        BigDecimal totalReceived = BigDecimal.ZERO;
+        BigDecimal totalFees = BigDecimal.ZERO;
+        Map<TransactionType, Long> byType = new EnumMap<>(TransactionType.class);
+        Map<TransactionStatus, Long> byStatus = new EnumMap<>(TransactionStatus.class);
+
+        for (Transaction tx : transactions) {
+            byStatus.merge(tx.getStatus(), 1L, Long::sum);
+            byType.merge(tx.getType(), 1L, Long::sum);
+
+            switch (tx.getStatus()) {
+                case COMPLETED -> completedCount++;
+                case FAILED -> failedCount++;
+                case PENDING, PROCESSING -> pendingCount++;
+                case CANCELLED -> cancelledCount++;
+                default -> { }
+            }
+
+            if (tx.getStatus() == TransactionStatus.COMPLETED) {
+                if (tx.getSender().getId().equals(userId)) {
+                    totalSent = totalSent.add(tx.getAmount());
+                }
+                if (tx.getReceiver().getId().equals(userId)) {
+                    totalReceived = totalReceived.add(tx.getAmount());
+                }
+                totalFees = totalFees.add(tx.getFee());
+            }
+        }
+
+        return TransactionSummaryResponse.builder()
+                .totalTransactions(transactions.size())
+                .completedTransactions(completedCount)
+                .failedTransactions(failedCount)
+                .pendingTransactions(pendingCount)
+                .cancelledTransactions(cancelledCount)
+                .totalAmountSent(totalSent)
+                .totalAmountReceived(totalReceived)
+                .totalFees(totalFees)
+                .netFlow(totalReceived.subtract(totalSent))
+                .periodStart(from)
+                .periodEnd(to)
+                .transactionsByType(byType)
+                .transactionsByStatus(byStatus)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TransactionReceiptResponse getTransactionReceipt(UUID transactionId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new TransactionNotFoundException(transactionId));
+
+        Account senderAccount = transaction.getSenderAccount();
+        Account receiverAccount = transaction.getReceiverAccount();
+
+        return TransactionReceiptResponse.builder()
+                .transactionId(transaction.getId())
+                .referenceId(transaction.getReferenceId())
+                .status(transaction.getStatus())
+                .type(transaction.getType())
+                .amount(transaction.getAmount())
+                .currency(transaction.getCurrency())
+                .fee(transaction.getFee())
+                .totalAmount(transaction.getTotalAmount())
+                .senderName(transaction.getSender().getFirstName() + " " + transaction.getSender().getLastName())
+                .senderAccountId(senderAccount.getId())
+                .senderAccountNumber(maskAccountNumber(senderAccount.getAccountNumber()))
+                .receiverName(transaction.getReceiver().getFirstName() + " " + transaction.getReceiver().getLastName())
+                .receiverAccountId(receiverAccount.getId())
+                .receiverAccountNumber(maskAccountNumber(receiverAccount.getAccountNumber()))
+                .description(transaction.getDescription())
+                .failureReason(transaction.getFailureReason())
+                .initiatedAt(transaction.getCreatedAt())
+                .completedAt(transaction.getProcessedAt())
+                .metadata(transaction.getMetadata())
+                .build();
     }
 
     @Override
@@ -379,6 +486,15 @@ public class TransactionServiceImpl implements TransactionService {
                 ? Sort.by(filter.getSortBy()).ascending()
                 : Sort.by(filter.getSortBy()).descending();
         return PageRequest.of(filter.getPage(), filter.getSize(), sort);
+    }
+
+    private String maskAccountNumber(String accountNumber) {
+        if (accountNumber == null || accountNumber.length() <= 4) {
+            return accountNumber;
+        }
+        int visibleDigits = 4;
+        String masked = "*".repeat(accountNumber.length() - visibleDigits);
+        return masked + accountNumber.substring(accountNumber.length() - visibleDigits);
     }
 
     private String generateReferenceId() {

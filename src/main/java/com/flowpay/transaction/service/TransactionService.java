@@ -1,10 +1,9 @@
 package com.flowpay.transaction.service;
 
-import com.flowpay.transaction.dto.InitiateTransactionRequest;
-import com.flowpay.transaction.dto.TransactionFilterRequest;
-import com.flowpay.transaction.dto.TransactionResponse;
+import com.flowpay.transaction.dto.*;
 import org.springframework.data.domain.Page;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,6 +20,12 @@ public interface TransactionService {
     Page<TransactionResponse> getTransactionsBySenderId(UUID senderId, TransactionFilterRequest filter);
 
     Page<TransactionResponse> getTransactionsByReceiverId(UUID receiverId, TransactionFilterRequest filter);
+
+    Page<TransactionResponse> getTransactionHistory(TransactionFilterRequest filter);
+
+    TransactionSummaryResponse getTransactionSummary(UUID userId, OffsetDateTime from, OffsetDateTime to);
+
+    TransactionReceiptResponse getTransactionReceipt(UUID transactionId);
 
     TransactionResponse cancelTransaction(UUID transactionId);
 

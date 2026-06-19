@@ -461,7 +461,7 @@ class TransactionServiceImplTest {
             transaction.setId(UUID.randomUUID());
 
             Page<Transaction> page = new PageImpl<>(List.of(transaction));
-            when(transactionRepository.findByUserId(eq(senderUserId), any(Pageable.class)))
+            when(transactionRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
                     .thenReturn(page);
             when(transactionMapper.toResponse(transaction)).thenReturn(expectedResponse);
 
