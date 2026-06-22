@@ -41,6 +41,18 @@ spring:
     baseline-on-migrate: true
     validate-on-migrate: true
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        spring.json.add.type.headers: false
+
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
@@ -49,6 +61,12 @@ flowpay:
     min-amount: 0.01
     max-amount: 1000000.00
     daily-limit-multiplier: 1.0
+  kafka:
+    topics:
+      payment-initiated: payment-initiated
+      payment-completed: payment-completed
+      payment-failed: payment-failed
+      audit-events: audit-events
 
 management:
   endpoints:

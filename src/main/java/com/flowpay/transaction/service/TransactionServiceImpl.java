@@ -3,6 +3,7 @@ package com.flowpay.transaction.service;
 import com.flowpay.common.enums.TransactionStatus;
 import com.flowpay.common.enums.TransactionType;
 import com.flowpay.common.exception.*;
+import com.flowpay.kafka.producer.PaymentEventProducer;
 import com.flowpay.transaction.dto.*;
 import com.flowpay.transaction.entity.Account;
 import com.flowpay.transaction.entity.Transaction;
@@ -44,6 +45,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionMapper transactionMapper;
     private final TransactionStatusMachine statusMachine;
     private final FailedTransactionHandler failedTransactionHandler;
+    private final PaymentEventProducer paymentEventProducer;
 
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -95,6 +97,9 @@ public class TransactionServiceImpl implements TransactionService {
         log.info("Transaction created: id={}, referenceId={}, status=PENDING",
                 transaction.getId(), transaction.getReferenceId());
 
+        // Publish payment initiated event
+        paymentEventProducer.publishPaymentInitiated(transaction);
+
         // 5. Process the transfer
         try {
             transitionStatus(transaction, TransactionStatus.PROCESSING);
@@ -115,6 +120,9 @@ public class TransactionServiceImpl implements TransactionService {
 
             log.info("Transaction completed: id={}, referenceId={}", transaction.getId(), transaction.getReferenceId());
 
+            // Publish payment completed event
+            paymentEventProducer.publishPaymentCompleted(transaction);
+
         } catch (IllegalStateException e) {
             // Insufficient balance — permanent failure, no retry
             transitionStatus(transaction, TransactionStatus.FAILED);
@@ -123,12 +131,19 @@ public class TransactionServiceImpl implements TransactionService {
 
             failedTransactionHandler.handlePermanentFailure(transaction, e);
 
+            // Publish payment failed event
+            paymentEventProducer.publishPaymentFailed(transaction);
+
             log.warn("Transaction failed: id={}, reason={}", transaction.getId(), e.getMessage());
             throw new InsufficientFundsException(request.getAmount(), senderAccount.getBalance());
 
         } catch (Exception e) {
             // Unexpected failure — attempt rollback and classify
             handleProcessingFailure(transaction, senderAccount, receiverAccount, request, e);
+
+            // Publish payment failed event
+            paymentEventProducer.publishPaymentFailed(transaction);
+
             throw new PaymentException("Transaction processing failed: " + e.getMessage(), e);
         }
 
@@ -156,6 +171,9 @@ public class TransactionServiceImpl implements TransactionService {
         // Transition back to PENDING for reprocessing
         transitionStatus(transaction, TransactionStatus.PENDING);
         transaction = transactionRepository.save(transaction);
+
+        // Publish retry event
+        paymentEventProducer.publishPaymentRetry(transaction);
 
         // Load accounts with pessimistic lock
         UUID senderAccId = transaction.getSenderAccount().getId();
@@ -187,8 +205,15 @@ public class TransactionServiceImpl implements TransactionService {
             log.info("Transaction retry successful: id={}, referenceId={}",
                     transaction.getId(), transaction.getReferenceId());
 
+            // Publish payment completed event
+            paymentEventProducer.publishPaymentCompleted(transaction);
+
         } catch (Exception e) {
             handleProcessingFailure(transaction, senderAccount, receiverAccount, null, e);
+
+            // Publish payment failed event
+            paymentEventProducer.publishPaymentFailed(transaction);
+
             throw new PaymentException("Transaction retry failed: " + e.getMessage(), e);
         }
 
@@ -224,6 +249,10 @@ public class TransactionServiceImpl implements TransactionService {
         transaction = transactionRepository.save(transaction);
 
         log.info("Transaction reversed: id={}, reason={}", transactionId, reason);
+
+        // Publish payment reversed event
+        paymentEventProducer.publishPaymentReversed(transaction);
+
         return transactionMapper.toResponse(transaction);
     }
 
@@ -421,6 +450,10 @@ public class TransactionServiceImpl implements TransactionService {
         transitionStatus(transaction, TransactionStatus.CANCELLED);
         transaction = transactionRepository.save(transaction);
         log.info("Transaction cancelled: id={}", transactionId);
+
+        // Publish payment cancelled event
+        paymentEventProducer.publishPaymentCancelled(transaction);
+
         return transactionMapper.toResponse(transaction);
     }
 

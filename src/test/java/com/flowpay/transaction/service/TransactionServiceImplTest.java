@@ -3,6 +3,7 @@ package com.flowpay.transaction.service;
 import com.flowpay.auth.entity.User;
 import com.flowpay.common.enums.*;
 import com.flowpay.common.exception.*;
+import com.flowpay.kafka.producer.PaymentEventProducer;
 import com.flowpay.transaction.dto.InitiateTransactionRequest;
 import com.flowpay.transaction.dto.TransactionFilterRequest;
 import com.flowpay.transaction.dto.TransactionResponse;
@@ -59,6 +60,9 @@ class TransactionServiceImplTest {
 
     @Mock
     private FailedTransactionHandler failedTransactionHandler;
+
+    @Mock
+    private PaymentEventProducer paymentEventProducer;
 
     @InjectMocks
     private TransactionServiceImpl transactionService;
