@@ -52,4 +52,37 @@ public class KafkaTopicConfig {
                 .replicas(1)
                 .build();
     }
+
+    // Dead Letter Topics
+    @Bean
+    public NewTopic paymentInitiatedDlt() {
+        return TopicBuilder.name(paymentInitiatedTopic + ".DLT")
+                .partitions(1)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic paymentCompletedDlt() {
+        return TopicBuilder.name(paymentCompletedTopic + ".DLT")
+                .partitions(1)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic paymentFailedDlt() {
+        return TopicBuilder.name(paymentFailedTopic + ".DLT")
+                .partitions(1)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic auditEventsDlt() {
+        return TopicBuilder.name(auditEventsTopic + ".DLT")
+                .partitions(1)
+                .replicas(1)
+                .build();
+    }
 }

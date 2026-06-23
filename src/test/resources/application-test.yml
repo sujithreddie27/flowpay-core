@@ -1,0 +1,61 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: flowpay-core-test
+
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        globally_quoted_identifiers: true
+    show-sql: false
+
+  flyway:
+    enabled: false
+
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.value.default.type: com.flowpay.kafka.dto.PaymentEvent
+
+flowpay:
+  payment:
+    min-amount: 0.01
+    max-amount: 1000000.00
+    daily-limit-multiplier: 1.0
+  kafka:
+    topics:
+      payment-initiated: payment-initiated
+      payment-completed: payment-completed
+      payment-failed: payment-failed
+      audit-events: audit-events
+    consumer:
+      concurrency: 1
+      retry:
+        max-attempts: 3
+        backoff-interval: 100
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  level:
+    root: WARN
+    com.flowpay: INFO
+    org.springframework.kafka: INFO

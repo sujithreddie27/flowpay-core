@@ -59,11 +59,16 @@ spring:
     consumer:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      group-id: flowpay-consumer-group
+      group-id: ${KAFKA_CONSUMER_GROUP:flowpay-consumer-group}
       auto-offset-reset: earliest
       enable-auto-commit: false
+      max-poll-records: 500
       properties:
         spring.json.trusted.packages: com.flowpay.*
+        spring.json.value.default.type: com.flowpay.kafka.dto.PaymentEvent
+        session.timeout.ms: 30000
+        heartbeat.interval.ms: 10000
+        max.poll.interval.ms: 300000
 
 management:
   endpoints:
