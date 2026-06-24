@@ -23,6 +23,19 @@ spring:
   flyway:
     enabled: false
 
+  cache:
+    type: none
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
   kafka:
     consumer:
       auto-offset-reset: earliest
@@ -47,6 +60,19 @@ flowpay:
       retry:
         max-attempts: 3
         backoff-interval: 100
+  cache:
+    ttl:
+      account-balance: 60
+      user-profile: 120
+      transaction-status: 30
+  rate-limiter:
+    enabled: false
+    default-limit: 10
+    default-window-seconds: 60
+  distributed-lock:
+    enabled: false
+    wait-time: 2000
+    lease-time: 10000
 
 management:
   endpoints:

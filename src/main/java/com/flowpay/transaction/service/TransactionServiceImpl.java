@@ -3,6 +3,7 @@ package com.flowpay.transaction.service;
 import com.flowpay.common.enums.TransactionStatus;
 import com.flowpay.common.enums.TransactionType;
 import com.flowpay.common.exception.*;
+import com.flowpay.config.RedisConfig;
 import com.flowpay.kafka.producer.PaymentEventProducer;
 import com.flowpay.transaction.dto.*;
 import com.flowpay.transaction.entity.Account;
@@ -15,6 +16,8 @@ import com.flowpay.transaction.statemachine.TransactionStatusMachine;
 import com.flowpay.transaction.validation.PaymentValidationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -152,6 +155,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     @Transactional
+    @CacheEvict(value = RedisConfig.CACHE_TRANSACTION_STATUS, key = "#transactionId")
     public TransactionResponse retryTransaction(UUID transactionId) {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));
@@ -222,6 +226,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED)
+    @CacheEvict(value = RedisConfig.CACHE_TRANSACTION_STATUS, key = "#transactionId")
     public TransactionResponse reverseTransaction(UUID transactionId, String reason) {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));
@@ -294,6 +299,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = RedisConfig.CACHE_TRANSACTION_STATUS, key = "#transactionId", unless = "#result == null")
     public TransactionResponse getTransactionById(UUID transactionId) {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));
@@ -441,6 +447,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     @Transactional
+    @CacheEvict(value = RedisConfig.CACHE_TRANSACTION_STATUS, key = "#transactionId")
     public TransactionResponse cancelTransaction(UUID transactionId) {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));

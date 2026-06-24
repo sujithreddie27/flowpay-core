@@ -1,27 +1,39 @@
 package com.flowpay.monitoring.health;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Custom health indicator for Redis connectivity.
- * This is a placeholder implementation. When Redis is integrated,
- * it will check Redis connection and response time.
- */
 @Slf4j
 @Component
+@RequiredArgsConstructor
+@ConditionalOnBean(RedisConnectionFactory.class)
 public class RedisHealthIndicator implements HealthIndicator {
+
+    private final RedisConnectionFactory redisConnectionFactory;
 
     @Override
     public Health health() {
         try {
-            // TODO: Implement actual Redis connectivity check when Redis is integrated
-            // For now, return UP status as Redis integration is pending
-            return Health.up()
+            RedisConnection connection = redisConnectionFactory.getConnection();
+            String pong = connection.ping();
+            connection.close();
+
+            if ("PONG".equals(pong)) {
+                return Health.up()
+                        .withDetail("service", "Redis")
+                        .withDetail("status", "Connected")
+                        .build();
+            }
+
+            return Health.down()
                     .withDetail("service", "Redis")
-                    .withDetail("status", "Not yet integrated - placeholder health check")
+                    .withDetail("status", "Unexpected ping response: " + pong)
                     .build();
         } catch (Exception e) {
             log.error("Redis health check failed", e);

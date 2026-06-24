@@ -61,6 +61,26 @@ spring:
         spring.json.trusted.packages: com.flowpay.*
         spring.json.value.default.type: com.flowpay.kafka.dto.PaymentEvent
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:redispass}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+          max-wait: 2000ms
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000
+      cache-null-values: false
+      key-prefix: "flowpay:"
+
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
@@ -80,6 +100,18 @@ flowpay:
       retry:
         max-attempts: 3
         backoff-interval: 1000
+  cache:
+    ttl:
+      account-balance: 300
+      user-profile: 600
+      transaction-status: 120
+  rate-limiter:
+    enabled: true
+    default-limit: 100
+    default-window-seconds: 60
+  distributed-lock:
+    wait-time: 5000
+    lease-time: 30000
 
 management:
   endpoints:

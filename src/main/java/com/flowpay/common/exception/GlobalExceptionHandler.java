@@ -1,6 +1,7 @@
 package com.flowpay.common.exception;
 
 import com.flowpay.common.dto.ApiResponse;
+import com.flowpay.common.lock.DistributedLockException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -162,6 +163,17 @@ public class GlobalExceptionHandler {
                 .build();
         ApiResponse<Void> response = ApiResponse.error("Transaction cannot be retried", errorDetails);
         return ResponseEntity.status(ex.getHttpStatus()).body(response);
+    }
+
+    @ExceptionHandler(DistributedLockException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDistributedLockException(DistributedLockException ex) {
+        log.warn("Distributed lock failure: {}", ex.getMessage());
+        ApiResponse.ErrorDetails errorDetails = ApiResponse.ErrorDetails.builder()
+                .code("LOCK_ACQUISITION_FAILED")
+                .details("Unable to process request due to concurrent access. Please retry.")
+                .build();
+        ApiResponse<Void> response = ApiResponse.error("Service temporarily unavailable", errorDetails);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
     @ExceptionHandler(Exception.class)

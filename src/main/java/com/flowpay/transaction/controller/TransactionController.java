@@ -2,6 +2,7 @@ package com.flowpay.transaction.controller;
 
 import com.flowpay.common.dto.ApiResponse;
 import com.flowpay.common.dto.PagedResponse;
+import com.flowpay.common.ratelimit.RateLimited;
 import com.flowpay.transaction.dto.*;
 import com.flowpay.transaction.service.TransactionService;
 import jakarta.validation.Valid;
@@ -25,6 +26,7 @@ public class TransactionController {
     private final TransactionService transactionService;
 
     @PostMapping
+    @RateLimited(limit = 50, windowSeconds = 60)
     public ResponseEntity<ApiResponse<TransactionResponse>> initiatePayment(
             @Valid @RequestBody InitiateTransactionRequest request) {
         TransactionResponse response = transactionService.initiatePayment(request);

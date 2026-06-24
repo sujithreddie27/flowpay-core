@@ -6,6 +6,7 @@ import com.flowpay.common.enums.AccountStatus;
 import com.flowpay.common.exception.AccountNotActiveException;
 import com.flowpay.common.exception.InsufficientFundsException;
 import com.flowpay.common.exception.ResourceNotFoundException;
+import com.flowpay.config.RedisConfig;
 import com.flowpay.transaction.dto.AccountResponse;
 import com.flowpay.transaction.dto.CreateAccountRequest;
 import com.flowpay.transaction.dto.UpdateAccountRequest;
@@ -14,6 +15,9 @@ import com.flowpay.transaction.mapper.AccountMapper;
 import com.flowpay.transaction.repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -60,6 +64,7 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = RedisConfig.CACHE_ACCOUNT, key = "#accountId", unless = "#result == null")
     public AccountResponse getAccountById(UUID accountId) {
         Account account = findAccountOrThrow(accountId);
         return accountMapper.toResponse(account);
@@ -92,6 +97,10 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT, key = "#accountId"),
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT_BALANCE, key = "#accountId")
+    })
     public AccountResponse updateAccount(UUID accountId, UpdateAccountRequest request) {
         Account account = findAccountOrThrow(accountId);
 
@@ -114,6 +123,10 @@ public class AccountServiceImpl implements AccountService {
             maxAttempts = 3,
             backoff = @Backoff(delay = 100, multiplier = 2)
     )
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT, key = "#accountId"),
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT_BALANCE, key = "#accountId")
+    })
     public AccountResponse creditAccount(UUID accountId, BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Credit amount must be positive");
@@ -136,6 +149,10 @@ public class AccountServiceImpl implements AccountService {
             maxAttempts = 3,
             backoff = @Backoff(delay = 100, multiplier = 2)
     )
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT, key = "#accountId"),
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT_BALANCE, key = "#accountId")
+    })
     public AccountResponse debitAccount(UUID accountId, BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Debit amount must be positive");
@@ -157,6 +174,7 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = RedisConfig.CACHE_ACCOUNT_BALANCE, key = "#accountId", unless = "#result == null")
     public BigDecimal getBalance(UUID accountId) {
         Account account = findAccountOrThrow(accountId);
         return account.getBalance();
