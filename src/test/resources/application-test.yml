@@ -6,7 +6,7 @@ spring:
     name: flowpay-core-test
 
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
     username: sa
     password:
     driver-class-name: org.h2.Driver
@@ -73,6 +73,12 @@ flowpay:
     enabled: false
     wait-time: 2000
     lease-time: 10000
+  security:
+    jwt:
+      secret: dGVzdHNlY3JldGtleWZvcmZsb3dwYXlqd3R0b2tlbnNpZ25pbmdwdXJwb3Nlc29ubHl0ZXN0aW5n
+      access-token-expiration: 900000
+      refresh-token-expiration: 604800000
+      issuer: flowpay-core-test
 
 management:
   endpoints:
