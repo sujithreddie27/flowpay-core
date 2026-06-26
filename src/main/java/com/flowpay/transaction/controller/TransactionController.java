@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
@@ -27,6 +28,7 @@ public class TransactionController {
 
     @PostMapping
     @RateLimited(limit = 50, windowSeconds = 60)
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     public ResponseEntity<ApiResponse<TransactionResponse>> initiatePayment(
             @Valid @RequestBody InitiateTransactionRequest request) {
         TransactionResponse response = transactionService.initiatePayment(request);
@@ -35,6 +37,7 @@ public class TransactionController {
     }
 
     @GetMapping("/{transactionId}")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     public ResponseEntity<ApiResponse<TransactionResponse>> getTransactionById(
             @PathVariable UUID transactionId) {
         TransactionResponse response = transactionService.getTransactionById(transactionId);
@@ -42,6 +45,7 @@ public class TransactionController {
     }
 
     @GetMapping("/reference/{referenceId}")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     public ResponseEntity<ApiResponse<TransactionResponse>> getTransactionByReferenceId(
             @PathVariable String referenceId) {
         TransactionResponse response = transactionService.getTransactionByReferenceId(referenceId);
@@ -49,6 +53,7 @@ public class TransactionController {
     }
 
     @GetMapping("/user/{userId}")
+    @PreAuthorize("@resourceOwnershipValidator.isOwnerOrAdmin(#userId)")
     public ResponseEntity<ApiResponse<PagedResponse<TransactionResponse>>> getTransactionsByUserId(
             @PathVariable UUID userId,
             @ModelAttribute TransactionFilterRequest filter) {
@@ -57,6 +62,7 @@ public class TransactionController {
     }
 
     @GetMapping("/sender/{senderId}")
+    @PreAuthorize("@resourceOwnershipValidator.isOwnerOrAdmin(#senderId)")
     public ResponseEntity<ApiResponse<PagedResponse<TransactionResponse>>> getTransactionsBySenderId(
             @PathVariable UUID senderId,
             @ModelAttribute TransactionFilterRequest filter) {
@@ -65,6 +71,7 @@ public class TransactionController {
     }
 
     @GetMapping("/receiver/{receiverId}")
+    @PreAuthorize("@resourceOwnershipValidator.isOwnerOrAdmin(#receiverId)")
     public ResponseEntity<ApiResponse<PagedResponse<TransactionResponse>>> getTransactionsByReceiverId(
             @PathVariable UUID receiverId,
             @ModelAttribute TransactionFilterRequest filter) {
@@ -73,6 +80,7 @@ public class TransactionController {
     }
 
     @PostMapping("/{transactionId}/cancel")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     public ResponseEntity<ApiResponse<TransactionResponse>> cancelTransaction(
             @PathVariable UUID transactionId) {
         TransactionResponse response = transactionService.cancelTransaction(transactionId);
@@ -80,6 +88,7 @@ public class TransactionController {
     }
 
     @PostMapping("/{transactionId}/retry")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<TransactionResponse>> retryTransaction(
             @PathVariable UUID transactionId) {
         TransactionResponse response = transactionService.retryTransaction(transactionId);
@@ -87,6 +96,7 @@ public class TransactionController {
     }
 
     @PostMapping("/{transactionId}/reverse")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<TransactionResponse>> reverseTransaction(
             @PathVariable UUID transactionId,
             @RequestParam(required = false, defaultValue = "Manual reversal") String reason) {
@@ -95,12 +105,14 @@ public class TransactionController {
     }
 
     @GetMapping("/retryable")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<TransactionResponse>>> getRetryableTransactions() {
         List<TransactionResponse> retryable = transactionService.getRetryableTransactions();
         return ResponseEntity.ok(ApiResponse.success(retryable));
     }
 
     @GetMapping("/history")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<PagedResponse<TransactionResponse>>> getTransactionHistory(
             @ModelAttribute TransactionFilterRequest filter) {
         Page<TransactionResponse> page = transactionService.getTransactionHistory(filter);
@@ -108,6 +120,7 @@ public class TransactionController {
     }
 
     @GetMapping("/summary/{userId}")
+    @PreAuthorize("@resourceOwnershipValidator.isOwnerOrAdmin(#userId)")
     public ResponseEntity<ApiResponse<TransactionSummaryResponse>> getTransactionSummary(
             @PathVariable UUID userId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
@@ -124,6 +137,7 @@ public class TransactionController {
     }
 
     @PostMapping("/stale/process")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Integer>>> processStalePendingTransactions() {
         int processed = transactionService.processStalePendingTransactions();
         return ResponseEntity.ok(ApiResponse.success(

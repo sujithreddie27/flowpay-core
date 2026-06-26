@@ -2,6 +2,7 @@ package com.flowpay.common.ratelimit;
 
 import com.flowpay.common.exception.RateLimitExceededException;
 import com.flowpay.config.RateLimiterProperties;
+import com.flowpay.security.CustomUserDetails;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +10,8 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -45,9 +48,18 @@ public class RateLimiterAspect {
             return rateLimited.key();
         }
 
-        String clientIp = getClientIp();
         String methodName = joinPoint.getSignature().toShortString();
-        return clientIp + ":" + methodName;
+        String identifier = resolveUserIdentifier();
+        return identifier + ":" + methodName;
+    }
+
+    private String resolveUserIdentifier() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()
+                && authentication.getPrincipal() instanceof CustomUserDetails userDetails) {
+            return "user:" + userDetails.getUserId().toString();
+        }
+        return "ip:" + getClientIp();
     }
 
     private String getClientIp() {

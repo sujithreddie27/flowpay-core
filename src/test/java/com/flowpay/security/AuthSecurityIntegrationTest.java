@@ -35,7 +35,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AuthController.class)
 @Import({SecurityConfig.class, JwtAuthenticationEntryPoint.class, JwtAuthenticationFilter.class,
-        JwtTokenProvider.class, JwtProperties.class, GlobalExceptionHandler.class})
+        JwtTokenProvider.class, JwtProperties.class, GlobalExceptionHandler.class,
+        AccessDeniedHandlerImpl.class})
 @ActiveProfiles("test")
 class AuthSecurityIntegrationTest {
 

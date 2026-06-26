@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -29,6 +30,7 @@ public class AccountController {
     private final AccountService accountService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     public ResponseEntity<ApiResponse<AccountResponse>> createAccount(
             @Valid @RequestBody CreateAccountRequest request) {
         AccountResponse response = accountService.createAccount(request);
@@ -37,6 +39,7 @@ public class AccountController {
     }
 
     @GetMapping("/{accountId}")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     public ResponseEntity<ApiResponse<AccountResponse>> getAccountById(
             @PathVariable UUID accountId) {
         AccountResponse response = accountService.getAccountById(accountId);
@@ -44,6 +47,7 @@ public class AccountController {
     }
 
     @GetMapping("/number/{accountNumber}")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     public ResponseEntity<ApiResponse<AccountResponse>> getAccountByNumber(
             @PathVariable String accountNumber) {
         AccountResponse response = accountService.getAccountByAccountNumber(accountNumber);
@@ -51,6 +55,7 @@ public class AccountController {
     }
 
     @GetMapping("/user/{userId}")
+    @PreAuthorize("@resourceOwnershipValidator.isOwnerOrAdmin(#userId)")
     public ResponseEntity<ApiResponse<List<AccountResponse>>> getAccountsByUserId(
             @PathVariable UUID userId) {
         List<AccountResponse> accounts = accountService.getAccountsByUserId(userId);
@@ -58,6 +63,7 @@ public class AccountController {
     }
 
     @GetMapping("/user/{userId}/paged")
+    @PreAuthorize("@resourceOwnershipValidator.isOwnerOrAdmin(#userId)")
     public ResponseEntity<ApiResponse<PagedResponse<AccountResponse>>> getAccountsByUserIdPaged(
             @PathVariable UUID userId,
             @RequestParam(defaultValue = "0") int page,
@@ -73,6 +79,7 @@ public class AccountController {
     }
 
     @PatchMapping("/{accountId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AccountResponse>> updateAccount(
             @PathVariable UUID accountId,
             @Valid @RequestBody UpdateAccountRequest request) {
@@ -81,6 +88,7 @@ public class AccountController {
     }
 
     @PostMapping("/{accountId}/credit")
+    @PreAuthorize("hasAnyRole('MERCHANT', 'ADMIN')")
     public ResponseEntity<ApiResponse<AccountResponse>> creditAccount(
             @PathVariable UUID accountId,
             @Valid @RequestBody BalanceOperationRequest request) {
@@ -89,6 +97,7 @@ public class AccountController {
     }
 
     @PostMapping("/{accountId}/debit")
+    @PreAuthorize("hasAnyRole('MERCHANT', 'ADMIN')")
     public ResponseEntity<ApiResponse<AccountResponse>> debitAccount(
             @PathVariable UUID accountId,
             @Valid @RequestBody BalanceOperationRequest request) {
@@ -97,6 +106,7 @@ public class AccountController {
     }
 
     @GetMapping("/{accountId}/balance")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     public ResponseEntity<ApiResponse<BigDecimal>> getBalance(
             @PathVariable UUID accountId) {
         BigDecimal balance = accountService.getBalance(accountId);
@@ -104,6 +114,7 @@ public class AccountController {
     }
 
     @GetMapping("/user/{userId}/total-balance")
+    @PreAuthorize("@resourceOwnershipValidator.isOwnerOrAdmin(#userId)")
     public ResponseEntity<ApiResponse<BigDecimal>> getTotalBalance(
             @PathVariable UUID userId) {
         BigDecimal totalBalance = accountService.getTotalBalance(userId);

@@ -9,6 +9,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -174,6 +175,17 @@ public class GlobalExceptionHandler {
                 .build();
         ApiResponse<Void> response = ApiResponse.error("Service temporarily unavailable", errorDetails);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        log.warn("Access denied: {}", ex.getMessage());
+        ApiResponse.ErrorDetails errorDetails = ApiResponse.ErrorDetails.builder()
+                .code("ACCESS_DENIED")
+                .details("You do not have permission to access this resource")
+                .build();
+        ApiResponse<Void> response = ApiResponse.error("Forbidden", errorDetails);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
     @ExceptionHandler(Exception.class)
