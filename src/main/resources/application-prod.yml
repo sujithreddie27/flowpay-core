@@ -79,12 +79,25 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      show-components: when-authorized
       probes:
         enabled: true
+    info:
+      enabled: true
   health:
     livenessState:
       enabled: true
     readinessState:
+      enabled: true
+  info:
+    build:
+      enabled: true
+    git:
+      enabled: true
+      mode: full
+    java:
+      enabled: true
+    os:
       enabled: true
   metrics:
     export:
