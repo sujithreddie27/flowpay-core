@@ -118,6 +118,9 @@ flowpay:
       access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:900000}
       refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000}
       issuer: flowpay-core
+  payment-gateway:
+    name: External Payment Gateway
+    health-url: ${PAYMENT_GATEWAY_HEALTH_URL:}
 
 management:
   endpoints:
@@ -132,6 +135,28 @@ management:
         enabled: true
     info:
       enabled: true
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        payment.processing.duration.seconds: true
+        payment.initiate.duration: true
+        payment.retry.duration: true
+        payment.reverse.duration: true
+        account.credit.duration: true
+        account.debit.duration: true
+      percentiles:
+        payment.processing.duration.seconds: 0.5, 0.75, 0.95, 0.99
+        payment.initiate.duration: 0.5, 0.75, 0.95, 0.99
+      slo:
+        payment.processing.duration.seconds: 100ms, 250ms, 500ms, 1s, 2s, 5s
+    tags:
+      application: flowpay-core
+      environment: ${ENVIRONMENT:dev}
   info:
     env:
       enabled: true
@@ -151,11 +176,6 @@ management:
       enabled: true
     defaults:
       enabled: true
-
-flowpay:
-  payment-gateway:
-    name: External Payment Gateway
-    health-url: ${PAYMENT_GATEWAY_HEALTH_URL:}
 
 logging:
   level:

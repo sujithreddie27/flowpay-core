@@ -4,6 +4,7 @@ import com.flowpay.auth.entity.User;
 import com.flowpay.common.enums.*;
 import com.flowpay.common.exception.*;
 import com.flowpay.kafka.producer.PaymentEventProducer;
+import com.flowpay.monitoring.metrics.PaymentMetricsService;
 import com.flowpay.transaction.dto.InitiateTransactionRequest;
 import com.flowpay.transaction.dto.TransactionFilterRequest;
 import com.flowpay.transaction.dto.TransactionResponse;
@@ -29,6 +30,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
+import io.micrometer.core.instrument.Timer;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -39,6 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class TransactionServiceImplTest {
@@ -64,6 +68,9 @@ class TransactionServiceImplTest {
     @Mock
     private PaymentEventProducer paymentEventProducer;
 
+    @Mock
+    private PaymentMetricsService paymentMetricsService;
+
     @InjectMocks
     private TransactionServiceImpl transactionService;
 
@@ -83,6 +90,8 @@ class TransactionServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(paymentMetricsService.startTimer()).thenReturn(mock(Timer.Sample.class));
+
         senderAccountId = UUID.randomUUID();
         receiverAccountId = UUID.randomUUID();
         senderUserId = UUID.randomUUID();

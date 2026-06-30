@@ -7,6 +7,7 @@ import com.flowpay.common.enums.AccountType;
 import com.flowpay.common.exception.AccountNotActiveException;
 import com.flowpay.common.exception.InsufficientFundsException;
 import com.flowpay.common.exception.ResourceNotFoundException;
+import com.flowpay.monitoring.metrics.PaymentMetricsService;
 import com.flowpay.transaction.dto.AccountResponse;
 import com.flowpay.transaction.dto.CreateAccountRequest;
 import com.flowpay.transaction.dto.UpdateAccountRequest;
@@ -49,6 +50,9 @@ class AccountServiceImplTest {
 
     @Mock
     private AccountMapper accountMapper;
+
+    @Mock
+    private PaymentMetricsService paymentMetricsService;
 
     @InjectMocks
     private AccountServiceImpl accountService;

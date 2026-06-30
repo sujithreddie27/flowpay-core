@@ -5,6 +5,7 @@ import com.flowpay.common.enums.TransactionType;
 import com.flowpay.common.exception.*;
 import com.flowpay.config.RedisConfig;
 import com.flowpay.kafka.producer.PaymentEventProducer;
+import com.flowpay.monitoring.metrics.PaymentMetricsService;
 import com.flowpay.transaction.dto.*;
 import com.flowpay.transaction.entity.Account;
 import com.flowpay.transaction.entity.Transaction;
@@ -14,6 +15,8 @@ import com.flowpay.transaction.repository.TransactionRepository;
 import com.flowpay.transaction.specification.TransactionSpecification;
 import com.flowpay.transaction.statemachine.TransactionStatusMachine;
 import com.flowpay.transaction.validation.PaymentValidationService;
+import io.micrometer.core.annotation.Timed;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -49,6 +52,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionStatusMachine statusMachine;
     private final FailedTransactionHandler failedTransactionHandler;
     private final PaymentEventProducer paymentEventProducer;
+    private final PaymentMetricsService paymentMetricsService;
 
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -57,7 +61,11 @@ public class TransactionServiceImpl implements TransactionService {
             maxAttempts = 3,
             backoff = @Backoff(delay = 150, multiplier = 2)
     )
+    @Timed(value = "payment.initiate.duration", description = "Time taken to initiate a payment")
     public TransactionResponse initiatePayment(InitiateTransactionRequest request) {
+        Timer.Sample timerSample = paymentMetricsService.startTimer();
+        paymentMetricsService.incrementActiveTransactions();
+
         log.info("Initiating payment: senderAccount={}, receiverAccount={}, amount={}, currency={}",
                 request.getSenderAccountId(), request.getReceiverAccountId(),
                 request.getAmount(), request.getCurrency());
@@ -123,6 +131,12 @@ public class TransactionServiceImpl implements TransactionService {
 
             log.info("Transaction completed: id={}, referenceId={}", transaction.getId(), transaction.getReferenceId());
 
+            // Record metrics
+            paymentMetricsService.stopTimer(timerSample, TransactionStatus.COMPLETED, transaction.getType());
+            paymentMetricsService.recordTransactionCompleted(TransactionStatus.COMPLETED, transaction.getType());
+            paymentMetricsService.recordTransactionAmount(transaction.getAmount(), transaction.getType());
+            paymentMetricsService.decrementActiveTransactions();
+
             // Publish payment completed event
             paymentEventProducer.publishPaymentCompleted(transaction);
 
@@ -131,6 +145,12 @@ public class TransactionServiceImpl implements TransactionService {
             transitionStatus(transaction, TransactionStatus.FAILED);
             transaction.setFailureReason(e.getMessage());
             transaction = transactionRepository.save(transaction);
+
+            // Record failure metrics
+            paymentMetricsService.stopTimer(timerSample, TransactionStatus.FAILED, transaction.getType());
+            paymentMetricsService.recordTransactionCompleted(TransactionStatus.FAILED, transaction.getType());
+            paymentMetricsService.recordPaymentFailure(transaction.getType(), e.getMessage());
+            paymentMetricsService.decrementActiveTransactions();
 
             failedTransactionHandler.handlePermanentFailure(transaction, e);
 
@@ -142,6 +162,11 @@ public class TransactionServiceImpl implements TransactionService {
 
         } catch (Exception e) {
             // Unexpected failure — attempt rollback and classify
+            paymentMetricsService.stopTimer(timerSample, TransactionStatus.FAILED, request.getType());
+            paymentMetricsService.recordTransactionCompleted(TransactionStatus.FAILED, request.getType());
+            paymentMetricsService.recordPaymentFailure(request.getType(), e.getMessage());
+            paymentMetricsService.decrementActiveTransactions();
+
             handleProcessingFailure(transaction, senderAccount, receiverAccount, request, e);
 
             // Publish payment failed event
@@ -156,6 +181,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional
     @CacheEvict(value = RedisConfig.CACHE_TRANSACTION_STATUS, key = "#transactionId")
+    @Timed(value = "payment.retry.duration", description = "Time taken to retry a payment")
     public TransactionResponse retryTransaction(UUID transactionId) {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));
@@ -171,6 +197,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         log.info("Retrying transaction: id={}, attempt={}", transactionId, transaction.getRetryCount() + 1);
+        paymentMetricsService.recordRetryAttempt(transactionId.toString());
 
         // Transition back to PENDING for reprocessing
         transitionStatus(transaction, TransactionStatus.PENDING);
@@ -227,6 +254,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED)
     @CacheEvict(value = RedisConfig.CACHE_TRANSACTION_STATUS, key = "#transactionId")
+    @Timed(value = "payment.reverse.duration", description = "Time taken to reverse a payment")
     public TransactionResponse reverseTransaction(UUID transactionId, String reason) {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));
@@ -254,6 +282,7 @@ public class TransactionServiceImpl implements TransactionService {
         transaction = transactionRepository.save(transaction);
 
         log.info("Transaction reversed: id={}, reason={}", transactionId, reason);
+        paymentMetricsService.recordReversal(transaction.getType());
 
         // Publish payment reversed event
         paymentEventProducer.publishPaymentReversed(transaction);
@@ -448,6 +477,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional
     @CacheEvict(value = RedisConfig.CACHE_TRANSACTION_STATUS, key = "#transactionId")
+    @Timed(value = "payment.cancel.duration", description = "Time taken to cancel a payment")
     public TransactionResponse cancelTransaction(UUID transactionId) {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));

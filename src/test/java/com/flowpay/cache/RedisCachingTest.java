@@ -5,6 +5,7 @@ import com.flowpay.auth.repository.UserRepository;
 import com.flowpay.common.enums.AccountStatus;
 import com.flowpay.common.enums.AccountType;
 import com.flowpay.config.RedisConfig;
+import com.flowpay.monitoring.metrics.PaymentMetricsService;
 import com.flowpay.transaction.dto.AccountResponse;
 import com.flowpay.transaction.dto.UpdateAccountRequest;
 import com.flowpay.transaction.entity.Account;
@@ -63,6 +64,11 @@ class RedisCachingTest {
         @Bean
         public AccountMapper accountMapper() {
             return mock(AccountMapper.class);
+        }
+
+        @Bean
+        public PaymentMetricsService paymentMetricsService() {
+            return mock(PaymentMetricsService.class);
         }
     }
 

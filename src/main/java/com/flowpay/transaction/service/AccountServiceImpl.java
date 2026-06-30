@@ -7,12 +7,14 @@ import com.flowpay.common.exception.AccountNotActiveException;
 import com.flowpay.common.exception.InsufficientFundsException;
 import com.flowpay.common.exception.ResourceNotFoundException;
 import com.flowpay.config.RedisConfig;
+import com.flowpay.monitoring.metrics.PaymentMetricsService;
 import com.flowpay.transaction.dto.AccountResponse;
 import com.flowpay.transaction.dto.CreateAccountRequest;
 import com.flowpay.transaction.dto.UpdateAccountRequest;
 import com.flowpay.transaction.entity.Account;
 import com.flowpay.transaction.mapper.AccountMapper;
 import com.flowpay.transaction.repository.AccountRepository;
+import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -40,9 +42,11 @@ public class AccountServiceImpl implements AccountService {
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
     private final AccountMapper accountMapper;
+    private final PaymentMetricsService paymentMetricsService;
 
     @Override
     @Transactional
+    @Timed(value = "account.create.duration", description = "Time taken to create an account")
     public AccountResponse createAccount(CreateAccountRequest request) {
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", request.getUserId()));
@@ -127,6 +131,7 @@ public class AccountServiceImpl implements AccountService {
             @CacheEvict(value = RedisConfig.CACHE_ACCOUNT, key = "#accountId"),
             @CacheEvict(value = RedisConfig.CACHE_ACCOUNT_BALANCE, key = "#accountId")
     })
+    @Timed(value = "account.credit.duration", description = "Time taken to credit an account")
     public AccountResponse creditAccount(UUID accountId, BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Credit amount must be positive");
@@ -137,6 +142,8 @@ public class AccountServiceImpl implements AccountService {
 
         account.credit(amount);
         Account saved = accountRepository.save(account);
+
+        paymentMetricsService.recordAccountBalance(accountId.toString(), saved.getCurrency(), saved.getBalance());
 
         log.info("Account credited: id={}, amount={}, newBalance={}", accountId, amount, saved.getBalance());
         return accountMapper.toResponse(saved);
@@ -153,6 +160,7 @@ public class AccountServiceImpl implements AccountService {
             @CacheEvict(value = RedisConfig.CACHE_ACCOUNT, key = "#accountId"),
             @CacheEvict(value = RedisConfig.CACHE_ACCOUNT_BALANCE, key = "#accountId")
     })
+    @Timed(value = "account.debit.duration", description = "Time taken to debit an account")
     public AccountResponse debitAccount(UUID accountId, BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Debit amount must be positive");
@@ -167,6 +175,8 @@ public class AccountServiceImpl implements AccountService {
 
         account.debit(amount);
         Account saved = accountRepository.save(account);
+
+        paymentMetricsService.recordAccountBalance(accountId.toString(), saved.getCurrency(), saved.getBalance());
 
         log.info("Account debited: id={}, amount={}, newBalance={}", accountId, amount, saved.getBalance());
         return accountMapper.toResponse(saved);
