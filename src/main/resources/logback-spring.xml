@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="flowpay-core"/>
+
+    <!-- Sensitive data masking pattern -->
+    <conversionRule conversionWord="maskedMsg"
+                    converterClass="com.flowpay.logging.SensitiveDataMaskingConverter"/>
+
+    <!-- ======================== -->
+    <!-- Console Appender (Text)  -->
+    <!-- ======================== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [traceId=%X{traceId:-}] [spanId=%X{spanId:-}] [requestId=%X{requestId:-}] %-5level %logger{36} - %maskedMsg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ======================== -->
+    <!-- JSON Console Appender    -->
+    <!-- ======================== -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <customFields>{"application":"${APP_NAME}"}</customFields>
+            <fieldNames>
+                <timestamp>@timestamp</timestamp>
+                <version>[ignore]</version>
+                <levelValue>[ignore]</levelValue>
+            </fieldNames>
+            <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                <maxDepthPerThrowable>30</maxDepthPerThrowable>
+                <maxLength>2048</maxLength>
+                <shortenedClassNameLength>20</shortenedClassNameLength>
+                <rootCauseFirst>true</rootCauseFirst>
+            </throwableConverter>
+            <jsonGeneratorDecorator class="com.flowpay.logging.SensitiveDataJsonMaskingDecorator"/>
+        </encoder>
+    </appender>
+
+    <!-- ======================== -->
+    <!-- JSON File Appender       -->
+    <!-- ======================== -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/app/logs/flowpay-core.json.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>/app/logs/flowpay-core.%d{yyyy-MM-dd}.%i.json.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <customFields>{"application":"${APP_NAME}"}</customFields>
+            <fieldNames>
+                <timestamp>@timestamp</timestamp>
+                <version>[ignore]</version>
+                <levelValue>[ignore]</levelValue>
+            </fieldNames>
+            <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                <maxDepthPerThrowable>30</maxDepthPerThrowable>
+                <maxLength>2048</maxLength>
+                <shortenedClassNameLength>20</shortenedClassNameLength>
+                <rootCauseFirst>true</rootCauseFirst>
+            </throwableConverter>
+            <jsonGeneratorDecorator class="com.flowpay.logging.SensitiveDataJsonMaskingDecorator"/>
+        </encoder>
+    </appender>
+
+    <!-- ======================== -->
+    <!-- Profile: dev             -->
+    <!-- ======================== -->
+    <springProfile name="dev">
+        <!-- Package-level log configuration -->
+        <logger name="com.flowpay" level="DEBUG"/>
+        <logger name="com.flowpay.security" level="DEBUG"/>
+        <logger name="com.flowpay.kafka" level="DEBUG"/>
+        <logger name="com.flowpay.transaction" level="DEBUG"/>
+        <logger name="com.flowpay.logging" level="DEBUG"/>
+        <logger name="org.springframework.web" level="DEBUG"/>
+        <logger name="org.springframework.kafka" level="INFO"/>
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/>
+        <logger name="io.micrometer.tracing" level="DEBUG"/>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- ======================== -->
+    <!-- Profile: test            -->
+    <!-- ======================== -->
+    <springProfile name="test">
+        <logger name="com.flowpay" level="INFO"/>
+        <logger name="org.springframework.kafka" level="INFO"/>
+
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- ======================== -->
+    <!-- Profile: prod            -->
+    <!-- ======================== -->
+    <springProfile name="prod">
+        <!-- Package-level log configuration -->
+        <logger name="com.flowpay" level="INFO"/>
+        <logger name="com.flowpay.security" level="WARN"/>
+        <logger name="com.flowpay.kafka" level="INFO"/>
+        <logger name="com.flowpay.transaction" level="INFO"/>
+        <logger name="com.flowpay.monitoring" level="INFO"/>
+        <logger name="org.springframework.web" level="WARN"/>
+        <logger name="org.springframework.kafka" level="WARN"/>
+        <logger name="org.hibernate.SQL" level="WARN"/>
+        <logger name="org.apache.kafka" level="WARN"/>
+        <logger name="io.micrometer" level="WARN"/>
+
+        <root level="WARN">
+            <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="JSON_FILE"/>
+        </root>
+    </springProfile>
+
+</configuration>

@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.lang.NonNull;
@@ -60,6 +61,7 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
 
         long startTime = System.currentTimeMillis();
 
+        MDC.put("requestId", requestId);
         try {
             wrappedResponse.setHeader("X-Request-ID", requestId);
             filterChain.doFilter(wrappedRequest, wrappedResponse);
@@ -68,6 +70,7 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
             logRequest(wrappedRequest, requestId);
             logResponse(wrappedResponse, requestId, duration);
             wrappedResponse.copyBodyToResponse();
+            MDC.remove("requestId");
         }
     }
 

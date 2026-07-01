@@ -106,6 +106,14 @@ management:
     tags:
       application: ${spring.application.name}
       environment: production
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+    propagation:
+      type: b3
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
 
 logging:
   level:
@@ -113,10 +121,3 @@ logging:
     com.flowpay: INFO
     org.springframework.web: WARN
     org.hibernate.SQL: WARN
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-  file:
-    name: /app/logs/flowpay-core.log
-    max-size: 100MB
-    max-history: 30
-    total-size-cap: 1GB

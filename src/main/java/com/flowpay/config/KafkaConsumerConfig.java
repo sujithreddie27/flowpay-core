@@ -46,6 +46,7 @@ public class KafkaConsumerConfig {
         factory.setConsumerFactory(paymentEventConsumerFactory);
         factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
+        factory.getContainerProperties().setObservationEnabled(true);
         factory.setCommonErrorHandler(kafkaErrorHandler);
         return factory;
     }

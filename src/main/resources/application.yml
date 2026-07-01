@@ -60,6 +60,10 @@ spring:
       properties:
         spring.json.trusted.packages: com.flowpay.*
         spring.json.value.default.type: com.flowpay.kafka.dto.PaymentEvent
+    listener:
+      observation-enabled: true
+    template:
+      observation-enabled: true
 
   data:
     redis:
@@ -176,6 +180,14 @@ management:
       enabled: true
     defaults:
       enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      type: b3
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
 
 logging:
   level:

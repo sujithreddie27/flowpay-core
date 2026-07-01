@@ -400,23 +400,23 @@ flowpay-core/
 
 | Week | Day | Status | Notes |
 |------|-----|--------|-------|
-| 1 | Day 1 | ⬜ | Project Init |
-| 1 | Day 2 | ⬜ | DB Migrations |
+| 1 | Day 1 | ✅ | Project Init |
+| 1 | Day 2 | ✅ | DB Migrations |
 | 1 | Day 3 | ✅ | Entities |
-| 1 | Day 4 | ⬜ | DTOs & Common |
-| 1 | Day 5 | ⬜ | Docker |
-| 2 | Day 6 | ⬜ | Account Service |
-| 2 | Day 7 | ⬜ | Validation |
-| 2 | Day 8 | ⬜ | Transaction Service |
-| 2 | Day 9 | ⬜ | Retry & Failures |
-| 2 | Day 10 | ⬜ | History & Queries |
-| 3 | Day 11 | ⬜ | Kafka Producer |
-| 3 | Day 12 | ⬜ | Kafka Consumer |
-| 3 | Day 13 | ⬜ | Redis Caching |
-| 3 | Day 14 | ⬜ | JWT Auth |
-| 3 | Day 15 | ⬜ | Authorization |
-| 4 | Day 16 | ⬜ | Health Checks |
-| 4 | Day 17 | ⬜ | Metrics |
+| 1 | Day 4 | ✅ | DTOs & Common |
+| 1 | Day 5 | ✅ | Docker |
+| 2 | Day 6 | ✅ | Account Service |
+| 2 | Day 7 | ✅ | Validation |
+| 2 | Day 8 | ✅ | Transaction Service |
+| 2 | Day 9 | ✅ | Retry & Failures |
+| 2 | Day 10 | ✅ | History & Queries |
+| 3 | Day 11 | ✅ | Kafka Producer |
+| 3 | Day 12 | ✅ | Kafka Consumer |
+| 3 | Day 13 | ✅ | Redis Caching |
+| 3 | Day 14 | ✅ | JWT Auth |
+| 3 | Day 15 | ✅ | Authorization |
+| 4 | Day 16 | ✅ | Health Checks |
+| 4 | Day 17 | ✅ | Metrics |
 | 4 | Day 18 | ⬜ | Logging & Tracing |
 | 4 | Day 19 | ⬜ | Testing |
 | 4 | Day 20 | ⬜ | Notifications |
