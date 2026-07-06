@@ -85,6 +85,18 @@ spring:
       cache-null-values: false
       key-prefix: "flowpay:"
 
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:false}
+
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
@@ -116,6 +128,15 @@ flowpay:
   distributed-lock:
     wait-time: 5000
     lease-time: 30000
+  notification:
+    email:
+      from: ${NOTIFICATION_EMAIL_FROM:noreply@flowpay.com}
+      enabled: ${NOTIFICATION_EMAIL_ENABLED:true}
+    webhook:
+      connect-timeout-ms: 5000
+      read-timeout-ms: 10000
+      retry-interval-ms: 60000
+      max-attempts: 5
   security:
     jwt:
       secret: ${JWT_SECRET:dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBmbG93cGF5IGp3dCBzaWduaW5nIHB1cnBvc2VzIG9ubHk=}

@@ -70,6 +70,21 @@ spring:
         heartbeat.interval.ms: 10000
         max.poll.interval.ms: 300000
 
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
 management:
   endpoints:
     web:
@@ -121,3 +136,14 @@ logging:
     com.flowpay: INFO
     org.springframework.web: WARN
     org.hibernate.SQL: WARN
+
+flowpay:
+  notification:
+    email:
+      from: ${NOTIFICATION_EMAIL_FROM:noreply@flowpay.com}
+      enabled: ${NOTIFICATION_EMAIL_ENABLED:true}
+    webhook:
+      connect-timeout-ms: 5000
+      read-timeout-ms: 10000
+      retry-interval-ms: 60000
+      max-attempts: 5
