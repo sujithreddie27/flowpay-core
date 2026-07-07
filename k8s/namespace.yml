@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flowpay
+  labels:
+    app.kubernetes.io/name: flowpay
+    app.kubernetes.io/managed-by: kubectl

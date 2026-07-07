@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flowpay-config
+  namespace: flowpay
+  labels:
+    app.kubernetes.io/name: flowpay-core
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: flowpay
+data:
+  # Application
+  SPRING_PROFILES_ACTIVE: "prod"
+  SERVER_PORT: "8080"
+
+  # Database
+  DB_HOST: "flowpay-postgres"
+  DB_PORT: "5432"
+  DB_NAME: "flowpay"
+  DB_POOL_SIZE: "30"
+
+  # Redis
+  REDIS_HOST: "flowpay-redis"
+  REDIS_PORT: "6379"
+
+  # Kafka
+  KAFKA_BOOTSTRAP_SERVERS: "flowpay-kafka:9092"
+  KAFKA_CONSUMER_GROUP: "flowpay-consumer-group"
+
+  # Mail
+  MAIL_HOST: "smtp.flowpay.com"
+  MAIL_PORT: "587"
+  MAIL_SMTP_AUTH: "true"
+  MAIL_SMTP_STARTTLS: "true"
+
+  # Notifications
+  NOTIFICATION_EMAIL_FROM: "noreply@flowpay.com"
+  NOTIFICATION_EMAIL_ENABLED: "true"
+
+  # Observability
+  TRACING_SAMPLING_PROBABILITY: "0.1"
+  ZIPKIN_ENDPOINT: "http://zipkin.observability.svc.cluster.local:9411/api/v2/spans"
+
+  # JWT (non-secret config)
+  JWT_ACCESS_TOKEN_EXPIRATION: "900000"
+  JWT_REFRESH_TOKEN_EXPIRATION: "604800000"
+
+  # JVM Options
+  JAVA_OPTS: >-
+    -XX:+UseContainerSupport
+    -XX:MaxRAMPercentage=75.0
+    -XX:InitialRAMPercentage=50.0
+    -XX:+UseG1GC
+    -XX:+UseStringDeduplication
+    -XX:+OptimizeStringConcat
+    -Djava.security.egd=file:/dev/./urandom
+    -Dspring.profiles.active=prod

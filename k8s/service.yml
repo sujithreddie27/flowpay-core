@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: flowpay-core
+  namespace: flowpay
+  labels:
+    app.kubernetes.io/name: flowpay-core
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: flowpay
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: flowpay-core
+    app.kubernetes.io/component: backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flowpay-core-lb
+  namespace: flowpay
+  labels:
+    app.kubernetes.io/name: flowpay-core
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: flowpay
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: flowpay-core
+    app.kubernetes.io/component: backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: http
+      protocol: TCP
