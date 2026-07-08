@@ -1,0 +1,166 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "HikariCP - Active Connections",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "hikaricp_connections_active{application=\"flowpay-core\"}",
+          "legendFormat": "Active"
+        },
+        {
+          "expr": "hikaricp_connections_idle{application=\"flowpay-core\"}",
+          "legendFormat": "Idle"
+        },
+        {
+          "expr": "hikaricp_connections_max{application=\"flowpay-core\"}",
+          "legendFormat": "Max"
+        }
+      ]
+    },
+    {
+      "title": "HikariCP - Connection Wait Time",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "rate(hikaricp_connections_acquire_seconds_sum{application=\"flowpay-core\"}[5m]) / rate(hikaricp_connections_acquire_seconds_count{application=\"flowpay-core\"}[5m])",
+          "legendFormat": "Avg Acquire Time"
+        }
+      ]
+    },
+    {
+      "title": "Transaction Throughput (TPS)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "rate(payment_transactions_total{application=\"flowpay-core\"}[1m])",
+          "legendFormat": "{{status}} - {{type}}"
+        }
+      ]
+    },
+    {
+      "title": "Payment Processing Latency (p95/p99)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(payment_initiate_duration_seconds_bucket{application=\"flowpay-core\"}[5m]))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(payment_initiate_duration_seconds_bucket{application=\"flowpay-core\"}[5m]))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "title": "Async Thread Pool - Active Threads",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "targets": [
+        {
+          "expr": "async_task_executor_active_count{application=\"flowpay-core\"}",
+          "legendFormat": "Task Executor Active"
+        },
+        {
+          "expr": "async_batch_executor_active_count{application=\"flowpay-core\"}",
+          "legendFormat": "Batch Executor Active"
+        },
+        {
+          "expr": "async_task_executor_queue_size{application=\"flowpay-core\"}",
+          "legendFormat": "Task Queue Size"
+        },
+        {
+          "expr": "async_batch_executor_queue_size{application=\"flowpay-core\"}",
+          "legendFormat": "Batch Queue Size"
+        }
+      ]
+    },
+    {
+      "title": "Kafka Consumer Lag",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "targets": [
+        {
+          "expr": "kafka_consumer_records_lag_max{application=\"flowpay-core\"}",
+          "legendFormat": "{{topic}} - Max Lag"
+        }
+      ]
+    },
+    {
+      "title": "Batch Processing",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 24},
+      "targets": [
+        {
+          "expr": "rate(payment_batch_success_total{application=\"flowpay-core\"}[5m])",
+          "legendFormat": "Success/sec"
+        }
+      ]
+    },
+    {
+      "title": "Batch Failures",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 24},
+      "targets": [
+        {
+          "expr": "rate(payment_batch_failure_total{application=\"flowpay-core\"}[5m])",
+          "legendFormat": "Failures/sec"
+        }
+      ]
+    },
+    {
+      "title": "JVM Heap Memory",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28},
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{area=\"heap\", application=\"flowpay-core\"} / 1024 / 1024",
+          "legendFormat": "{{id}} Used (MB)"
+        },
+        {
+          "expr": "jvm_memory_max_bytes{area=\"heap\", application=\"flowpay-core\"} / 1024 / 1024",
+          "legendFormat": "{{id}} Max (MB)"
+        }
+      ]
+    },
+    {
+      "title": "HTTP Request Rate & Error Rate",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28},
+      "targets": [
+        {
+          "expr": "rate(http_server_requests_seconds_count{application=\"flowpay-core\"}[1m])",
+          "legendFormat": "Requests/sec"
+        },
+        {
+          "expr": "rate(http_server_requests_seconds_count{application=\"flowpay-core\", status=~\"5..\"}[1m])",
+          "legendFormat": "5xx Errors/sec"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "tags": ["flowpay", "performance", "hikaricp", "kafka"],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "title": "FlowPay - Performance & Connection Pool Monitoring",
+  "uid": "flowpay-performance",
+  "version": 1
+}

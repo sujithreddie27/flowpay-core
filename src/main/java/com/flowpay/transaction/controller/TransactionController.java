@@ -4,6 +4,7 @@ import com.flowpay.common.dto.ApiResponse;
 import com.flowpay.common.dto.PagedResponse;
 import com.flowpay.common.ratelimit.RateLimited;
 import com.flowpay.transaction.dto.*;
+import com.flowpay.transaction.service.BatchTransactionService;
 import com.flowpay.transaction.service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import java.util.UUID;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final BatchTransactionService batchTransactionService;
 
     @PostMapping
     @RateLimited(limit = 50, windowSeconds = 60)
@@ -144,5 +146,24 @@ public class TransactionController {
                 Map.of("processedCount", processed),
                 "Stale pending transactions processed"
         ));
+    }
+
+    @PostMapping("/batch")
+    @RateLimited(limit = 10, windowSeconds = 60)
+    @PreAuthorize("hasAnyRole('MERCHANT', 'ADMIN')")
+    public ResponseEntity<ApiResponse<BatchTransactionResponse>> processBatch(
+            @Valid @RequestBody BatchTransactionRequest request) {
+        BatchTransactionResponse response = batchTransactionService.processBatch(request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Batch processed successfully"));
+    }
+
+    @PostMapping("/batch/async")
+    @RateLimited(limit = 5, windowSeconds = 60)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<String>> processBatchAsync(
+            @Valid @RequestBody BatchTransactionRequest request) {
+        batchTransactionService.processBatchAsync(request);
+        return ResponseEntity.accepted()
+                .body(ApiResponse.success("Batch submitted for async processing"));
     }
 }

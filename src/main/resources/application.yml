@@ -10,7 +10,7 @@ spring:
     active: dev
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:flowpay}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:flowpay}?reWriteBatchedInserts=true
     username: ${DB_USERNAME:flowpay}
     password: ${DB_PASSWORD:flowpay}
     driver-class-name: org.postgresql.Driver
@@ -20,7 +20,9 @@ spring:
       idle-timeout: 300000
       connection-timeout: 20000
       max-lifetime: 1200000
+      leak-detection-threshold: 30000
       pool-name: FlowPayHikariPool
+      register-mbeans: true
 
   jpa:
     hibernate:
@@ -31,9 +33,15 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
         jdbc:
-          batch_size: 25
+          batch_size: 50
+          fetch_size: 100
         order_inserts: true
         order_updates: true
+        batch_versioned_data: true
+        generate_statistics: ${HIBERNATE_STATS:false}
+        query:
+          in_clause_parameter_padding: true
+          plan_cache_max_size: 2048
 
   flyway:
     enabled: true
@@ -105,6 +113,13 @@ flowpay:
     min-amount: 0.01
     max-amount: 1000000.00
     daily-limit-multiplier: 1.0
+  async:
+    core-pool-size: ${ASYNC_CORE_POOL_SIZE:8}
+    max-pool-size: ${ASYNC_MAX_POOL_SIZE:32}
+    queue-capacity: ${ASYNC_QUEUE_CAPACITY:500}
+    batch-core-pool-size: ${BATCH_CORE_POOL_SIZE:4}
+    batch-max-pool-size: ${BATCH_MAX_POOL_SIZE:16}
+    batch-queue-capacity: ${BATCH_QUEUE_CAPACITY:200}
   kafka:
     topics:
       payment-initiated: payment-initiated
@@ -112,7 +127,7 @@ flowpay:
       payment-failed: payment-failed
       audit-events: audit-events
     consumer:
-      concurrency: 3
+      concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
       retry:
         max-attempts: 3
         backoff-interval: 1000
@@ -151,7 +166,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics,prometheus,hikaricp
   endpoint:
     health:
       show-details: when-authorized
@@ -163,6 +178,12 @@ management:
     prometheus:
       enabled: true
   metrics:
+    enable:
+      hikaricp: true
+      jvm: true
+      process: true
+      system: true
+      jdbc: true
     export:
       prometheus:
         enabled: true
@@ -172,13 +193,18 @@ management:
         payment.initiate.duration: true
         payment.retry.duration: true
         payment.reverse.duration: true
+        payment.batch.duration: true
         account.credit.duration: true
         account.debit.duration: true
+        http.server.requests: true
       percentiles:
         payment.processing.duration.seconds: 0.5, 0.75, 0.95, 0.99
         payment.initiate.duration: 0.5, 0.75, 0.95, 0.99
+        payment.batch.duration: 0.5, 0.75, 0.95, 0.99
+        http.server.requests: 0.5, 0.75, 0.95, 0.99
       slo:
         payment.processing.duration.seconds: 100ms, 250ms, 500ms, 1s, 2s, 5s
+        http.server.requests: 50ms, 100ms, 250ms, 500ms, 1s, 2s
     tags:
       application: flowpay-core
       environment: ${ENVIRONMENT:dev}
