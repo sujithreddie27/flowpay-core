@@ -4,6 +4,10 @@ import com.flowpay.common.dto.ApiResponse;
 import com.flowpay.notification.dto.*;
 import com.flowpay.notification.service.NotificationPreferenceService;
 import com.flowpay.notification.service.NotificationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +22,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
+@Tag(name = "Notifications", description = "Notification delivery and preference management")
 public class NotificationController {
 
     private final NotificationService notificationService;
@@ -25,6 +30,11 @@ public class NotificationController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Send a notification", description = "Trigger a notification to a user via configured channels")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Notification sent"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request")
+    })
     public ResponseEntity<ApiResponse<NotificationResponse>> sendNotification(
             @Valid @RequestBody NotificationRequest request) {
         NotificationResponse response = notificationService.sendNotification(request);
@@ -34,14 +44,16 @@ public class NotificationController {
 
     @GetMapping("/preferences/{userId}")
     @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Get notification preferences", description = "Retrieve notification preferences for a user")
     public ResponseEntity<ApiResponse<NotificationPreferenceResponse>> getPreferences(
-            @PathVariable UUID userId) {
+            @Parameter(description = "User UUID") @PathVariable UUID userId) {
         NotificationPreferenceResponse response = preferenceService.getPreferences(userId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PutMapping("/preferences")
     @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Update notification preferences", description = "Update notification channel preferences for a user")
     public ResponseEntity<ApiResponse<NotificationPreferenceResponse>> updatePreferences(
             @Valid @RequestBody UpdateNotificationPreferenceRequest request) {
         NotificationPreferenceResponse response = preferenceService.updatePreferences(request);
@@ -50,8 +62,9 @@ public class NotificationController {
 
     @PostMapping("/preferences/{userId}/default")
     @PreAuthorize("hasAnyRole('ADMIN')")
+    @Operation(summary = "Create default preferences", description = "Create default notification preferences for a user (Admin only)")
     public ResponseEntity<ApiResponse<NotificationPreferenceResponse>> createDefaultPreferences(
-            @PathVariable UUID userId) {
+            @Parameter(description = "User UUID") @PathVariable UUID userId) {
         NotificationPreferenceResponse response = preferenceService.createDefaultPreferences(userId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Default preferences created"));

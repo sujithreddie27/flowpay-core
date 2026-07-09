@@ -24,6 +24,8 @@
         <jjwt.version>0.12.5</jjwt.version>
         <gatling.version>3.10.5</gatling.version>
         <gatling-maven-plugin.version>4.8.2</gatling-maven-plugin.version>
+        <springdoc.version>2.5.0</springdoc.version>
+        <dependency-check-maven.version>9.2.0</dependency-check-maven.version>
     </properties>
 
     <dependencies>
@@ -215,6 +217,13 @@
             <artifactId>logstash-logback-encoder</artifactId>
             <version>7.4</version>
         </dependency>
+
+        <!-- SpringDoc OpenAPI (Swagger UI) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -288,6 +297,21 @@
                 <configuration>
                     <simulationsFolder>src/test/java</simulationsFolder>
                     <runMultipleSimulations>true</runMultipleSimulations>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>${dependency-check-maven.version}</version>
+                <configuration>
+                    <failBuildOnCVSS>7</failBuildOnCVSS>
+                    <suppressionFiles>
+                        <suppressionFile>dependency-check-suppressions.xml</suppressionFile>
+                    </suppressionFiles>
+                    <formats>
+                        <format>HTML</format>
+                        <format>JSON</format>
+                    </formats>
                 </configuration>
             </plugin>
         </plugins>
