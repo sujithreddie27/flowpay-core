@@ -77,3 +77,5 @@ flowpay:
       secret: dGVzdHNlY3JldGtleWZvcmZsb3dwYXlqd3R0b2tlbnNpZ25pbmdwdXJwb3Nlc29ubHl0ZXN0aW5n
       access-token-expiration: 900000
       refresh-token-expiration: 604800000
+  alerting:
+    enabled: false

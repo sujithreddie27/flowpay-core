@@ -79,6 +79,8 @@ flowpay:
       access-token-expiration: 900000
       refresh-token-expiration: 604800000
       issuer: flowpay-core-test
+  alerting:
+    enabled: false
 
 management:
   endpoints:

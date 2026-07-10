@@ -1,0 +1,275 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: flowpay-core-alerts
+  namespace: flowpay
+  labels:
+    app.kubernetes.io/name: flowpay-core
+    app.kubernetes.io/component: monitoring
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: flowpay.payment.rules
+      interval: 30s
+      rules:
+        # High Error Rate Alert - fires when payment failure rate exceeds 5%
+        - alert: FlowPayHighErrorRate
+          expr: |
+            (
+              sum(rate(payment_transactions_total{status="FAILED"}[5m]))
+              /
+              sum(rate(payment_transactions_total[5m]))
+            ) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+            team: payments
+            service: flowpay-core
+          annotations:
+            summary: "High payment error rate detected"
+            description: "Payment failure rate is {{ $value | humanizePercentage }} (threshold: 5%) over the last 5 minutes."
+            runbook_url: "https://runbooks.flowpay.internal/alerts/high-error-rate"
+            dashboard_url: "https://grafana.flowpay.internal/d/flowpay-payments"
+
+        # Transaction Processing Latency - p99 exceeds 2 seconds
+        - alert: FlowPayHighLatencyP99
+          expr: |
+            histogram_quantile(0.99, 
+              sum(rate(payment_processing_duration_seconds_bucket[5m])) by (le)
+            ) > 2.0
+          for: 3m
+          labels:
+            severity: critical
+            team: payments
+            service: flowpay-core
+          annotations:
+            summary: "Transaction processing latency p99 exceeds 2s"
+            description: "P99 transaction processing latency is {{ $value | humanizeDuration }} (threshold: 2s)."
+            runbook_url: "https://runbooks.flowpay.internal/alerts/high-latency"
+            dashboard_url: "https://grafana.flowpay.internal/d/flowpay-performance"
+
+        # Transaction Processing Latency Warning - p95 exceeds 1 second
+        - alert: FlowPayHighLatencyP95
+          expr: |
+            histogram_quantile(0.95, 
+              sum(rate(payment_processing_duration_seconds_bucket[5m])) by (le)
+            ) > 1.0
+          for: 5m
+          labels:
+            severity: warning
+            team: payments
+            service: flowpay-core
+          annotations:
+            summary: "Transaction processing latency p95 exceeds 1s"
+            description: "P95 transaction processing latency is {{ $value | humanizeDuration }} (threshold: 1s)."
+
+        # Active Transactions Gauge - too many stuck transactions
+        - alert: FlowPayHighActiveTransactions
+          expr: payment_active_transactions_count > 100
+          for: 5m
+          labels:
+            severity: warning
+            team: payments
+            service: flowpay-core
+          annotations:
+            summary: "Unusually high number of active transactions"
+            description: "There are {{ $value }} active transactions (threshold: 100). Possible processing backlog."
+
+        # Payment Failures Spike
+        - alert: FlowPayFailureSpike
+          expr: |
+            sum(increase(payment_failures_total[5m])) > 50
+          for: 1m
+          labels:
+            severity: critical
+            team: payments
+            service: flowpay-core
+          annotations:
+            summary: "Sudden spike in payment failures"
+            description: "{{ $value }} payment failures in the last 5 minutes."
+
+    - name: flowpay.infrastructure.rules
+      interval: 30s
+      rules:
+        # Database Connection Pool Exhaustion
+        - alert: FlowPayDBPoolExhaustion
+          expr: |
+            (
+              hikaricp_connections_active{pool="FlowPayHikariPool-Prod"}
+              /
+              hikaricp_connections_max{pool="FlowPayHikariPool-Prod"}
+            ) > 0.85
+          for: 2m
+          labels:
+            severity: critical
+            team: platform
+            service: flowpay-core
+          annotations:
+            summary: "Database connection pool near exhaustion"
+            description: "HikariCP pool utilization is {{ $value | humanizePercentage }} (threshold: 85%). Active: {{ with query \"hikaricp_connections_active\" }}{{ . | first | value }}{{ end }}."
+            runbook_url: "https://runbooks.flowpay.internal/alerts/db-pool-exhaustion"
+
+        # Database Connection Pool Warning
+        - alert: FlowPayDBPoolHighUtilization
+          expr: |
+            (
+              hikaricp_connections_active{pool="FlowPayHikariPool-Prod"}
+              /
+              hikaricp_connections_max{pool="FlowPayHikariPool-Prod"}
+            ) > 0.70
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            service: flowpay-core
+          annotations:
+            summary: "Database connection pool utilization high"
+            description: "HikariCP pool utilization is {{ $value | humanizePercentage }} (threshold: 70%)."
+
+        # Database Connection Pending Timeout
+        - alert: FlowPayDBConnectionTimeout
+          expr: |
+            increase(hikaricp_connections_timeout_total{pool="FlowPayHikariPool-Prod"}[5m]) > 0
+          for: 1m
+          labels:
+            severity: critical
+            team: platform
+            service: flowpay-core
+          annotations:
+            summary: "Database connection timeouts detected"
+            description: "{{ $value }} connection timeout(s) in the last 5 minutes. Pool may be saturated."
+
+        # Pod Restart Alert
+        - alert: FlowPayPodRestart
+          expr: |
+            increase(kube_pod_container_status_restarts_total{
+              namespace="flowpay",
+              container="flowpay-core"
+            }[15m]) > 0
+          for: 0m
+          labels:
+            severity: warning
+            team: platform
+            service: flowpay-core
+          annotations:
+            summary: "FlowPay pod restarted"
+            description: "Pod {{ $labels.pod }} has restarted {{ $value }} time(s) in the last 15 minutes."
+
+        # Pod CrashLooping
+        - alert: FlowPayPodCrashLooping
+          expr: |
+            increase(kube_pod_container_status_restarts_total{
+              namespace="flowpay",
+              container="flowpay-core"
+            }[1h]) > 3
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            service: flowpay-core
+          annotations:
+            summary: "FlowPay pod is crash-looping"
+            description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in the last hour."
+            runbook_url: "https://runbooks.flowpay.internal/alerts/pod-crashloop"
+
+        # High Memory Usage
+        - alert: FlowPayHighMemoryUsage
+          expr: |
+            (
+              container_memory_usage_bytes{namespace="flowpay", container="flowpay-core"}
+              /
+              container_spec_memory_limit_bytes{namespace="flowpay", container="flowpay-core"}
+            ) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            service: flowpay-core
+          annotations:
+            summary: "High memory usage on FlowPay pod"
+            description: "Pod {{ $labels.pod }} memory usage is {{ $value | humanizePercentage }}."
+
+        # High CPU Usage
+        - alert: FlowPayHighCPUUsage
+          expr: |
+            (
+              rate(container_cpu_usage_seconds_total{namespace="flowpay", container="flowpay-core"}[5m])
+              /
+              container_spec_cpu_quota{namespace="flowpay", container="flowpay-core"}
+              * container_spec_cpu_period{namespace="flowpay", container="flowpay-core"}
+            ) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            service: flowpay-core
+          annotations:
+            summary: "High CPU usage on FlowPay pod"
+            description: "Pod {{ $labels.pod }} CPU usage is {{ $value | humanizePercentage }}."
+
+    - name: flowpay.kafka.rules
+      interval: 30s
+      rules:
+        # Kafka Consumer Lag
+        - alert: FlowPayKafkaConsumerLag
+          expr: |
+            sum(kafka_consumer_lag{group="flowpay-consumer-group"}) by (topic) > 1000
+          for: 5m
+          labels:
+            severity: warning
+            team: payments
+            service: flowpay-core
+          annotations:
+            summary: "Kafka consumer lag is high"
+            description: "Consumer group flowpay-consumer-group has a lag of {{ $value }} on topic {{ $labels.topic }}."
+
+        # Kafka Consumer Lag Critical
+        - alert: FlowPayKafkaConsumerLagCritical
+          expr: |
+            sum(kafka_consumer_lag{group="flowpay-consumer-group"}) by (topic) > 10000
+          for: 2m
+          labels:
+            severity: critical
+            team: payments
+            service: flowpay-core
+          annotations:
+            summary: "Kafka consumer lag is critically high"
+            description: "Consumer group flowpay-consumer-group has a lag of {{ $value }} on topic {{ $labels.topic }}. Events are severely delayed."
+
+    - name: flowpay.redis.rules
+      interval: 30s
+      rules:
+        # Redis Connection Failures
+        - alert: FlowPayRedisConnectionFailure
+          expr: |
+            increase(redis_connection_failures_total{service="flowpay-core"}[5m]) > 5
+          for: 1m
+          labels:
+            severity: critical
+            team: platform
+            service: flowpay-core
+          annotations:
+            summary: "Redis connection failures detected"
+            description: "{{ $value }} Redis connection failures in the last 5 minutes."
+
+    - name: flowpay.slo.rules
+      interval: 30s
+      rules:
+        # SLO: 99.9% Payment Success Rate
+        - alert: FlowPaySLOViolation
+          expr: |
+            (
+              sum(rate(payment_transactions_total{status="COMPLETED"}[1h]))
+              /
+              sum(rate(payment_transactions_total[1h]))
+            ) < 0.999
+          for: 10m
+          labels:
+            severity: critical
+            team: payments
+            service: flowpay-core
+            slo: payment-success-rate
+          annotations:
+            summary: "Payment success rate SLO violation"
+            description: "Payment success rate is {{ $value | humanizePercentage }} (SLO: 99.9%) over the last hour."

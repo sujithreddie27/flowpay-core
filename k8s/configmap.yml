@@ -40,6 +40,14 @@ data:
   TRACING_SAMPLING_PROBABILITY: "0.1"
   ZIPKIN_ENDPOINT: "http://zipkin.observability.svc.cluster.local:9411/api/v2/spans"
 
+  # Alerting
+  ALERTING_ENABLED: "true"
+  ALERTING_INTERVAL_MS: "30000"
+  ALERTING_SLACK_ENABLED: "true"
+  ALERTING_SLACK_CHANNEL: "#alerts-payments-prod"
+  ALERTING_PAGERDUTY_ENABLED: "true"
+  ENVIRONMENT: "production"
+
   # JWT (non-secret config)
   JWT_ACCESS_TOKEN_EXPIRATION: "900000"
   JWT_REFRESH_TOKEN_EXPIRATION: "604800000"

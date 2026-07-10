@@ -188,6 +188,21 @@ flowpay:
       read-timeout-ms: 10000
       retry-interval-ms: 60000
       max-attempts: 5
+  alerting:
+    enabled: true
+    evaluation-interval-ms: 30000
+    environment: production
+    thresholds:
+      error-rate: 0.05
+      latency-p99-seconds: 2.0
+      db-pool-utilization: 0.85
+    slack:
+      enabled: ${ALERTING_SLACK_ENABLED:true}
+      webhook-url: ${ALERTING_SLACK_WEBHOOK_URL}
+      channel: ${ALERTING_SLACK_CHANNEL:#alerts-payments-prod}
+    pagerduty:
+      enabled: ${ALERTING_PAGERDUTY_ENABLED:true}
+      routing-key: ${ALERTING_PAGERDUTY_ROUTING_KEY}
 
 # Disable Swagger UI in production for security
 springdoc:

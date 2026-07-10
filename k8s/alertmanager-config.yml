@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flowpay-alertmanager-config
+  namespace: flowpay
+  labels:
+    app.kubernetes.io/name: flowpay-core
+    app.kubernetes.io/component: alerting
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+      slack_api_url: '$(SLACK_WEBHOOK_URL)'
+
+    route:
+      receiver: 'default'
+      group_by: ['alertname', 'severity', 'service']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        # Critical alerts go to PagerDuty immediately
+        - receiver: 'pagerduty-critical'
+          match:
+            severity: critical
+          group_wait: 10s
+          repeat_interval: 1h
+          continue: true
+
+        # All payment alerts go to payment team Slack channel
+        - receiver: 'slack-payments'
+          match:
+            team: payments
+          group_wait: 30s
+          repeat_interval: 2h
+
+        # Infrastructure alerts go to platform team
+        - receiver: 'slack-platform'
+          match:
+            team: platform
+          group_wait: 30s
+          repeat_interval: 2h
+
+    receivers:
+      - name: 'default'
+        slack_configs:
+          - channel: '#alerts-flowpay'
+            send_resolved: true
+            title: '{{ template "slack.title" . }}'
+            text: '{{ template "slack.text" . }}'
+            actions:
+              - type: button
+                text: 'Runbook'
+                url: '{{ (index .Alerts 0).Annotations.runbook_url }}'
+              - type: button
+                text: 'Dashboard'
+                url: '{{ (index .Alerts 0).Annotations.dashboard_url }}'
+
+      - name: 'pagerduty-critical'
+        pagerduty_configs:
+          - routing_key: '$(PAGERDUTY_ROUTING_KEY)'
+            severity: '{{ .CommonLabels.severity }}'
+            description: '{{ .CommonAnnotations.summary }}'
+            details:
+              firing: '{{ template "pagerduty.instances" .Alerts.Firing }}'
+              resolved: '{{ template "pagerduty.instances" .Alerts.Resolved }}'
+              num_firing: '{{ .Alerts.Firing | len }}'
+              num_resolved: '{{ .Alerts.Resolved | len }}'
+
+      - name: 'slack-payments'
+        slack_configs:
+          - channel: '#alerts-payments-prod'
+            send_resolved: true
+            color: '{{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}danger{{ else }}warning{{ end }}{{ else }}good{{ end }}'
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+            text: |
+              *Service:* {{ .CommonLabels.service }}
+              *Severity:* {{ .CommonLabels.severity }}
+              *Description:* {{ .CommonAnnotations.description }}
+              *Fired at:* {{ .StartsAt }}
+            actions:
+              - type: button
+                text: 'Runbook'
+                url: '{{ (index .Alerts 0).Annotations.runbook_url }}'
+              - type: button
+                text: 'Dashboard'
+                url: '{{ (index .Alerts 0).Annotations.dashboard_url }}'
+
+      - name: 'slack-platform'
+        slack_configs:
+          - channel: '#alerts-platform-prod'
+            send_resolved: true
+            color: '{{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}danger{{ else }}warning{{ end }}{{ else }}good{{ end }}'
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+            text: |
+              *Service:* {{ .CommonLabels.service }}
+              *Severity:* {{ .CommonLabels.severity }}
+              *Description:* {{ .CommonAnnotations.description }}
+
+    templates:
+      - '/etc/alertmanager/templates/*.tmpl'
+
+    inhibit_rules:
+      # If a critical alert is firing, suppress the corresponding warning
+      - source_match:
+          severity: critical
+        target_match:
+          severity: warning
+        equal: ['alertname', 'service']

@@ -1,0 +1,27 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: flowpay-core-monitor
+  namespace: flowpay
+  labels:
+    app.kubernetes.io/name: flowpay-core
+    app.kubernetes.io/component: monitoring
+    release: prometheus
+spec:
+  namespaceSelector:
+    matchNames:
+      - flowpay
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flowpay-core
+      app.kubernetes.io/component: backend
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
+      scrapeTimeout: 10s
+      honorLabels: true
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "jvm_.*|process_.*|payment_.*|hikaricp_.*|http_server_.*|kafka_consumer_.*"
+          action: keep

@@ -152,6 +152,21 @@ flowpay:
       read-timeout-ms: 10000
       retry-interval-ms: 60000
       max-attempts: 5
+  alerting:
+    enabled: ${ALERTING_ENABLED:false}
+    evaluation-interval-ms: ${ALERTING_INTERVAL_MS:30000}
+    environment: ${ENVIRONMENT:dev}
+    thresholds:
+      error-rate: 0.05
+      latency-p99-seconds: 2.0
+      db-pool-utilization: 0.85
+    slack:
+      enabled: ${ALERTING_SLACK_ENABLED:false}
+      webhook-url: ${ALERTING_SLACK_WEBHOOK_URL:}
+      channel: ${ALERTING_SLACK_CHANNEL:#alerts-payments}
+    pagerduty:
+      enabled: ${ALERTING_PAGERDUTY_ENABLED:false}
+      routing-key: ${ALERTING_PAGERDUTY_ROUTING_KEY:}
   security:
     jwt:
       secret: ${JWT_SECRET:dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBmbG93cGF5IGp3dCBzaWduaW5nIHB1cnBvc2VzIG9ubHk=}
