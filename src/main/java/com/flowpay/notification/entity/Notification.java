@@ -38,7 +38,7 @@ public class Notification extends BaseEntity {
     @Column(name = "subject", nullable = false, length = 500)
     private String subject;
 
-    @Column(name = "content", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "content", nullable = false, length = 10000)
     private String content;
 
     @Column(name = "recipient_email", length = 255)

@@ -16,7 +16,8 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
     "com.flowpay.transaction.repository",
     "com.flowpay.payments.repository",
     "com.flowpay.common.repository",
-    "com.flowpay.kafka.repository"
+    "com.flowpay.kafka.repository",
+    "com.flowpay.notification.repository"
 })
 @EnableTransactionManagement
 public class JpaConfig {

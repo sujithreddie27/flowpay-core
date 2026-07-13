@@ -100,7 +100,7 @@ public class Transaction extends BaseEntity {
     private String failureReason;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "metadata", columnDefinition = "jsonb")
+    @Column(name = "metadata")
     private Map<String, Object> metadata;
 
     @Column(name = "retry_count", nullable = false)

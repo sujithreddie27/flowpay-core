@@ -63,7 +63,7 @@ public class DeadLetterTransaction {
     @Column(name = "exception_class", length = 255)
     private String exceptionClass;
 
-    @Column(name = "stack_trace", columnDefinition = "TEXT")
+    @Column(name = "stack_trace", length = 10000)
     private String stackTrace;
 
     @Column(name = "retry_count", nullable = false)
@@ -75,7 +75,7 @@ public class DeadLetterTransaction {
     private Boolean maxRetriesExhausted = false;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "metadata", columnDefinition = "jsonb")
+    @Column(name = "metadata")
     private Map<String, Object> metadata;
 
     @Size(max = 1000)

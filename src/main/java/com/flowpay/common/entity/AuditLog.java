@@ -57,11 +57,11 @@ public class AuditLog implements Serializable {
     private AuditAction action;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "old_value", columnDefinition = "jsonb")
+    @Column(name = "old_value")
     private Map<String, Object> oldValue;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "new_value", columnDefinition = "jsonb")
+    @Column(name = "new_value")
     private Map<String, Object> newValue;
 
     @ManyToOne(fetch = FetchType.LAZY)

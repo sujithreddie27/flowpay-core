@@ -35,10 +35,10 @@ public class WebhookDelivery extends BaseEntity {
     @Column(name = "url", nullable = false, length = 2048)
     private String url;
 
-    @Column(name = "request_body", columnDefinition = "TEXT")
+    @Column(name = "request_body", length = 10000)
     private String requestBody;
 
-    @Column(name = "response_body", columnDefinition = "TEXT")
+    @Column(name = "response_body", length = 10000)
     private String responseBody;
 
     @Column(name = "http_status")

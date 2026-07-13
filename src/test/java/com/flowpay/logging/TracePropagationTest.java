@@ -39,6 +39,7 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Tag("docker")
 @EmbeddedKafka(
         partitions = 1,
         topics = {

@@ -11,6 +11,7 @@ import com.flowpay.common.exception.TransactionNotFoundException;
 import com.flowpay.common.exception.TransactionNotRetryableException;
 import com.flowpay.transaction.dto.InitiateTransactionRequest;
 import com.flowpay.transaction.dto.TransactionResponse;
+import com.flowpay.transaction.service.BatchTransactionService;
 import com.flowpay.transaction.service.TransactionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,9 @@ class TransactionControllerTest {
 
     @MockBean
     private TransactionService transactionService;
+
+    @MockBean
+    private BatchTransactionService batchTransactionService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;

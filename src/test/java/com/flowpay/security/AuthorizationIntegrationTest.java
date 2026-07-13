@@ -12,6 +12,7 @@ import com.flowpay.transaction.controller.TransactionController;
 import com.flowpay.transaction.dto.AccountResponse;
 import com.flowpay.transaction.dto.TransactionResponse;
 import com.flowpay.transaction.service.AccountService;
+import com.flowpay.transaction.service.BatchTransactionService;
 import com.flowpay.transaction.service.TransactionService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,9 @@ class AuthorizationIntegrationTest {
 
     @MockBean
     private TransactionService transactionService;
+
+    @MockBean
+    private BatchTransactionService batchTransactionService;
 
     @MockBean
     private AccountService accountService;
