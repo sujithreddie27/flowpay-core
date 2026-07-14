@@ -103,12 +103,11 @@ class AuthSecurityIntegrationTest {
             CreateUserRequest request = CreateUserRequest.builder()
                     .email("newuser@flowpay.com")
                     .password("SecurePass123!")
-                    .firstName("New")
-                    .lastName("User")
+                    .name("New User")
                     .phone("+1234567890")
                     .build();
 
-            mockMvc.perform(post("/api/auth/register")
+            mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
@@ -128,11 +127,10 @@ class AuthSecurityIntegrationTest {
             CreateUserRequest request = CreateUserRequest.builder()
                     .email("existing@flowpay.com")
                     .password("AnotherPass1!")
-                    .firstName("Another")
-                    .lastName("User")
+                    .name("Another User")
                     .build();
 
-            mockMvc.perform(post("/api/auth/register")
+            mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isConflict())
@@ -146,11 +144,10 @@ class AuthSecurityIntegrationTest {
             CreateUserRequest request = CreateUserRequest.builder()
                     .email("not-an-email")
                     .password("SecurePass123!")
-                    .firstName("Test")
-                    .lastName("User")
+                    .name("Test User")
                     .build();
 
-            mockMvc.perform(post("/api/auth/register")
+            mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
@@ -162,11 +159,10 @@ class AuthSecurityIntegrationTest {
             CreateUserRequest request = CreateUserRequest.builder()
                     .email("test@flowpay.com")
                     .password("short")
-                    .firstName("Test")
-                    .lastName("User")
+                    .name("Test User")
                     .build();
 
-            mockMvc.perform(post("/api/auth/register")
+            mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
@@ -190,7 +186,7 @@ class AuthSecurityIntegrationTest {
                     .password("ValidPass123!")
                     .build();
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
@@ -212,7 +208,7 @@ class AuthSecurityIntegrationTest {
                     .password("WrongPassword!")
                     .build();
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized())
@@ -231,7 +227,7 @@ class AuthSecurityIntegrationTest {
                     .password("SomePass123!")
                     .build();
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized())
@@ -249,7 +245,7 @@ class AuthSecurityIntegrationTest {
                     .password("ValidPass123!")
                     .build();
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized());
@@ -272,7 +268,7 @@ class AuthSecurityIntegrationTest {
                     .refreshToken("valid.refresh.token")
                     .build();
 
-            mockMvc.perform(post("/api/auth/refresh")
+            mockMvc.perform(post("/api/v1/auth/refresh")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
@@ -291,7 +287,7 @@ class AuthSecurityIntegrationTest {
                     .refreshToken("invalid.refresh.token")
                     .build();
 
-            mockMvc.perform(post("/api/auth/refresh")
+            mockMvc.perform(post("/api/v1/auth/refresh")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized())
@@ -308,7 +304,7 @@ class AuthSecurityIntegrationTest {
                     .refreshToken("access.token.as.refresh")
                     .build();
 
-            mockMvc.perform(post("/api/auth/refresh")
+            mockMvc.perform(post("/api/v1/auth/refresh")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized())
@@ -359,7 +355,7 @@ class AuthSecurityIntegrationTest {
         @DisplayName("should allow unauthenticated access to auth endpoints")
         void shouldAllowUnauthenticatedAuthAccess() throws Exception {
             // Auth endpoints are public
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
                     .andExpect(result ->

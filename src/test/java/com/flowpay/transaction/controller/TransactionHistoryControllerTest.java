@@ -88,9 +88,9 @@ class TransactionHistoryControllerTest {
             mockMvc.perform(get("/api/v1/transactions/history"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.data.content").isArray())
-                    .andExpect(jsonPath("$.data.content[0].referenceId").value("TXN-HIST001"))
-                    .andExpect(jsonPath("$.data.totalElements").value(1));
+                    .andExpect(jsonPath("$.data.items").isArray())
+                    .andExpect(jsonPath("$.data.items[0].referenceId").value("TXN-HIST001"))
+                    .andExpect(jsonPath("$.data.total").value(1));
         }
 
         @Test
@@ -104,7 +104,7 @@ class TransactionHistoryControllerTest {
                             .param("type", "TRANSFER"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.data.content").isArray());
+                    .andExpect(jsonPath("$.data.items").isArray());
         }
 
         @Test

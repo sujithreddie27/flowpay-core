@@ -122,12 +122,11 @@ class FullSystemIntegrationTest {
             CreateUserRequest request = CreateUserRequest.builder()
                     .email("sender-system@flowpay.com")
                     .password("SecurePass123!")
-                    .firstName("System")
-                    .lastName("Sender")
+                    .name("System Sender")
                     .phone("+1234567001")
                     .build();
 
-            MvcResult result = mockMvc.perform(post("/api/auth/register")
+            MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
@@ -154,12 +153,11 @@ class FullSystemIntegrationTest {
             CreateUserRequest request = CreateUserRequest.builder()
                     .email("receiver-system@flowpay.com")
                     .password("SecurePass123!")
-                    .firstName("System")
-                    .lastName("Receiver")
+                    .name("System Receiver")
                     .phone("+1234567002")
                     .build();
 
-            MvcResult result = mockMvc.perform(post("/api/auth/register")
+            MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
@@ -180,12 +178,11 @@ class FullSystemIntegrationTest {
             CreateUserRequest request = CreateUserRequest.builder()
                     .email("sender-system@flowpay.com")
                     .password("AnotherPass123!")
-                    .firstName("Duplicate")
-                    .lastName("User")
+                    .name("Duplicate User")
                     .phone("+1234567099")
                     .build();
 
-            mockMvc.perform(post("/api/auth/register")
+            mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isConflict());
@@ -200,7 +197,7 @@ class FullSystemIntegrationTest {
                     .password("SecurePass123!")
                     .build();
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
@@ -218,7 +215,7 @@ class FullSystemIntegrationTest {
                     .password("WrongPassword!")
                     .build();
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized());
@@ -234,7 +231,7 @@ class FullSystemIntegrationTest {
                     .password("SecurePass123!")
                     .build();
 
-            MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+            MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(loginRequest)))
                     .andExpect(status().isOk())
@@ -247,7 +244,7 @@ class FullSystemIntegrationTest {
                     .refreshToken(refreshToken)
                     .build();
 
-            mockMvc.perform(post("/api/auth/refresh")
+            mockMvc.perform(post("/api/v1/auth/refresh")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(refreshRequest)))
                     .andExpect(status().isOk())
@@ -646,11 +643,10 @@ class FullSystemIntegrationTest {
             CreateUserRequest badRequest = CreateUserRequest.builder()
                     .email("not-an-email")
                     .password("short")
-                    .firstName("")
-                    .lastName("")
+                    .name("")
                     .build();
 
-            mockMvc.perform(post("/api/auth/register")
+            mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(badRequest)))
                     .andExpect(status().isBadRequest());

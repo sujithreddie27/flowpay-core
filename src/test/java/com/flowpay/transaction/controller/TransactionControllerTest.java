@@ -73,10 +73,7 @@ class TransactionControllerTest {
         return TransactionResponse.builder()
                 .id(transactionId)
                 .referenceId("TXN-ABC123DEF456")
-                .senderId(senderId)
-                .receiverId(receiverId)
-                .senderAccountId(senderAccountId)
-                .receiverAccountId(receiverAccountId)
+                .accountId(senderAccountId)
                 .amount(new BigDecimal("250.00"))
                 .currency("USD")
                 .fee(BigDecimal.ZERO)
@@ -93,7 +90,6 @@ class TransactionControllerTest {
     void shouldInitiatePayment() throws Exception {
         InitiateTransactionRequest request = InitiateTransactionRequest.builder()
                 .senderAccountId(senderAccountId)
-                .receiverAccountId(receiverAccountId)
                 .amount(new BigDecimal("250.00"))
                 .currency("USD")
                 .type(TransactionType.TRANSFER)
@@ -120,7 +116,6 @@ class TransactionControllerTest {
     void shouldReturn400ForInvalidRequest() throws Exception {
         InitiateTransactionRequest invalidRequest = InitiateTransactionRequest.builder()
                 .senderAccountId(null)
-                .receiverAccountId(null)
                 .amount(null)
                 .currency(null)
                 .type(null)
@@ -180,9 +175,9 @@ class TransactionControllerTest {
         mockMvc.perform(get("/api/v1/transactions/user/{userId}", senderId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.content").isArray())
-                .andExpect(jsonPath("$.data.content[0].referenceId").value("TXN-ABC123DEF456"))
-                .andExpect(jsonPath("$.data.totalElements").value(1));
+                .andExpect(jsonPath("$.data.items").isArray())
+                .andExpect(jsonPath("$.data.items[0].referenceId").value("TXN-ABC123DEF456"))
+                .andExpect(jsonPath("$.data.total").value(1));
     }
 
     @Test

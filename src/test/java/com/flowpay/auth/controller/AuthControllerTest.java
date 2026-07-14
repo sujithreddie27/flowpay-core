@@ -69,7 +69,7 @@ class AuthControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /api/auth/register")
+    @DisplayName("POST /api/v1/auth/register")
     class Register {
 
         @Test
@@ -78,14 +78,13 @@ class AuthControllerTest {
             CreateUserRequest request = CreateUserRequest.builder()
                     .email("new@example.com")
                     .password("SecurePass123!")
-                    .firstName("New")
-                    .lastName("User")
+                    .name("New User")
                     .phone("+1234567890")
                     .build();
 
             when(authService.register(any(CreateUserRequest.class))).thenReturn(authResponse);
 
-            mockMvc.perform(post("/api/auth/register")
+            mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
@@ -102,11 +101,10 @@ class AuthControllerTest {
             CreateUserRequest request = CreateUserRequest.builder()
                     .email("invalid-email")
                     .password("SecurePass123!")
-                    .firstName("Test")
-                    .lastName("User")
+                    .name("Test User")
                     .build();
 
-            mockMvc.perform(post("/api/auth/register")
+            mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
@@ -118,11 +116,10 @@ class AuthControllerTest {
             CreateUserRequest request = CreateUserRequest.builder()
                     .email("valid@example.com")
                     .password("short")
-                    .firstName("Test")
-                    .lastName("User")
+                    .name("Test User")
                     .build();
 
-            mockMvc.perform(post("/api/auth/register")
+            mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
@@ -133,7 +130,7 @@ class AuthControllerTest {
         void shouldReturn400ForMissingFields() throws Exception {
             String requestJson = "{}";
 
-            mockMvc.perform(post("/api/auth/register")
+            mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestJson))
                     .andExpect(status().isBadRequest());
@@ -145,14 +142,13 @@ class AuthControllerTest {
             CreateUserRequest request = CreateUserRequest.builder()
                     .email("existing@example.com")
                     .password("SecurePass123!")
-                    .firstName("Existing")
-                    .lastName("User")
+                    .name("Existing User")
                     .build();
 
             when(authService.register(any(CreateUserRequest.class)))
                     .thenThrow(new UserAlreadyExistsException("email", "existing@example.com"));
 
-            mockMvc.perform(post("/api/auth/register")
+            mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isConflict());
@@ -160,7 +156,7 @@ class AuthControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /api/auth/login")
+    @DisplayName("POST /api/v1/auth/login")
     class Login {
 
         @Test
@@ -173,7 +169,7 @@ class AuthControllerTest {
 
             when(authService.login(any(LoginRequest.class))).thenReturn(authResponse);
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
@@ -193,7 +189,7 @@ class AuthControllerTest {
             when(authService.login(any(LoginRequest.class)))
                     .thenThrow(new AuthenticationFailedException("Invalid email or password"));
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized());
@@ -204,7 +200,7 @@ class AuthControllerTest {
         void shouldReturn400ForMissingEmail() throws Exception {
             String requestJson = "{\"password\": \"SecurePass123!\"}";
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestJson))
                     .andExpect(status().isBadRequest());
@@ -212,7 +208,7 @@ class AuthControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /api/auth/refresh")
+    @DisplayName("POST /api/v1/auth/refresh")
     class RefreshToken {
 
         @Test
@@ -224,7 +220,7 @@ class AuthControllerTest {
 
             when(authService.refreshToken(any(RefreshTokenRequest.class))).thenReturn(authResponse);
 
-            mockMvc.perform(post("/api/auth/refresh")
+            mockMvc.perform(post("/api/v1/auth/refresh")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
@@ -238,7 +234,7 @@ class AuthControllerTest {
         void shouldReturn400ForMissingToken() throws Exception {
             String requestJson = "{}";
 
-            mockMvc.perform(post("/api/auth/refresh")
+            mockMvc.perform(post("/api/v1/auth/refresh")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestJson))
                     .andExpect(status().isBadRequest());

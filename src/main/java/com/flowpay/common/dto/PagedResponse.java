@@ -1,6 +1,7 @@
 package com.flowpay.common.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,11 +17,19 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PagedResponse<T> {
 
+    @JsonProperty("items")
     private List<T> content;
+
     private int page;
+
+    @JsonProperty("pageSize")
     private int size;
+
+    @JsonProperty("total")
     private long totalElements;
+
     private int totalPages;
+
     private boolean first;
     private boolean last;
 

@@ -1,5 +1,7 @@
 package com.flowpay.auth.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.flowpay.common.enums.KycStatus;
 import com.flowpay.common.enums.UserRole;
 import com.flowpay.common.enums.UserStatus;
@@ -17,11 +19,14 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserResponse {
 
     private UUID id;
     private String email;
+    @JsonIgnore
     private String firstName;
+    @JsonIgnore
     private String lastName;
     private String phone;
     private UserStatus status;
@@ -32,4 +37,11 @@ public class UserResponse {
     private OffsetDateTime lastLoginAt;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+
+    public String getName() {
+        if (firstName == null && lastName == null) return null;
+        String first = firstName != null ? firstName : "";
+        String last = lastName != null ? lastName : "";
+        return (first + " " + last).trim();
+    }
 }

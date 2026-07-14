@@ -67,8 +67,7 @@ class AuthServiceImplTest {
         createUserRequest = CreateUserRequest.builder()
                 .email("test@example.com")
                 .password("SecurePass123!")
-                .firstName("Test")
-                .lastName("User")
+                .name("Test User")
                 .phone("+1234567890")
                 .build();
 
@@ -156,8 +155,7 @@ class AuthServiceImplTest {
             CreateUserRequest noPhoneRequest = CreateUserRequest.builder()
                     .email("nophone@example.com")
                     .password("SecurePass123!")
-                    .firstName("No")
-                    .lastName("Phone")
+                    .name("No Phone")
                     .build();
 
             User noPhoneUser = User.builder()

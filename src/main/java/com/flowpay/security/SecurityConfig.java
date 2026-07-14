@@ -36,7 +36,7 @@ public class SecurityConfig {
     private final XssProtectionFilter xssProtectionFilter;
 
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/auth/**",
+            "/api/v1/auth/**",
             "/actuator/health",
             "/actuator/health/**",
             "/actuator/info",

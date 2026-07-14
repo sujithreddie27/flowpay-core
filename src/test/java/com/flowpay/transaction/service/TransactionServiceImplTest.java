@@ -141,7 +141,6 @@ class TransactionServiceImplTest {
 
         request = InitiateTransactionRequest.builder()
                 .senderAccountId(senderAccountId)
-                .receiverAccountId(receiverAccountId)
                 .amount(new BigDecimal("100.00"))
                 .currency("USD")
                 .type(TransactionType.TRANSFER)
@@ -152,10 +151,7 @@ class TransactionServiceImplTest {
         expectedResponse = TransactionResponse.builder()
                 .id(UUID.randomUUID())
                 .referenceId("TXN-ABC123")
-                .senderId(senderUserId)
-                .receiverId(receiverUserId)
-                .senderAccountId(senderAccountId)
-                .receiverAccountId(receiverAccountId)
+                .accountId(senderAccountId)
                 .amount(new BigDecimal("100.00"))
                 .currency("USD")
                 .fee(BigDecimal.ZERO)
@@ -249,7 +245,6 @@ class TransactionServiceImplTest {
         void shouldSkipIdempotencyCheckWhenKeyIsNull() {
             InitiateTransactionRequest noKeyRequest = InitiateTransactionRequest.builder()
                     .senderAccountId(senderAccountId)
-                    .receiverAccountId(receiverAccountId)
                     .amount(new BigDecimal("100.00"))
                     .currency("USD")
                     .type(TransactionType.TRANSFER)
@@ -338,7 +333,6 @@ class TransactionServiceImplTest {
 
             InitiateTransactionRequest largeRequest = InitiateTransactionRequest.builder()
                     .senderAccountId(senderAccountId)
-                    .receiverAccountId(receiverAccountId)
                     .amount(new BigDecimal("500.00"))
                     .currency("USD")
                     .type(TransactionType.TRANSFER)

@@ -428,3 +428,116 @@ flowpay-core/
 ---
 
 *Replace ⬜ with ✅ as you complete each day.*
+# FlowPay Backend-Frontend Alignment — 2-Day Sprint Plan
+
+## Completed ✅
+
+1. **Auth endpoint path**: `/api/auth` → `/api/v1/auth`
+2. **Security config**: PUBLIC_ENDPOINTS updated to `/api/v1/auth/**`
+3. **Vite proxy rewrite**: Removed broken `/api` stripping
+4. **Jackson enum config**: Enums now serialize as lowercase
+5. **PagedResponse**: `content→items`, `size→pageSize`, `totalElements→total`
+6. **CreateUserRequest**: `firstName+lastName` → single `name` field
+7. **UserResponse**: Added `getName()` combining first+last
+8. **Reverse endpoint**: `@RequestParam` → `@RequestBody`
+9. **InitiateTransactionRequest**: Added `@JsonAlias("accountId")`, `recipientAccountNumber`, `metadata`
+10. **TransactionResponse**: Restructured with nested `sender`/`recipient` objects, `netAmount`, timestamps
+11. **AccountResponse**: Added `availableBalance`, `lastActivityAt`
+12. **All existing tests pass** (54 tests, 0 failures)
+
+## Remaining — Missing Backend Endpoints
+
+---
+
+## DAY 1 — Core User Flows (Auth + Dashboard + Accounts + Transactions)
+
+### Session 1: Auth Completions (~30 min)
+- [ ] `POST /api/v1/auth/logout` — Blacklist refresh token in Redis
+- [ ] `GET /api/v1/auth/me` — Extract user from JWT, return profile
+- [ ] `GET /api/v1/auth/verify` — Token validation endpoint
+- [ ] `POST /api/v1/auth/password/reset-request` — Generate reset token, log it
+
+### Session 2: Dashboard Controller (~45 min)
+- [ ] Create `DashboardController` + `DashboardService`
+- [ ] `GET /api/v1/dashboard/stats` — Aggregate queries on transactions/accounts
+- [ ] `GET /api/v1/dashboard/charts` — Combined chart data
+- [ ] `GET /api/v1/dashboard/transaction-volume` — Group by date
+- [ ] `GET /api/v1/dashboard/status-distribution` — Count by status
+- [ ] `GET /api/v1/dashboard/revenue` — Sum fees by day
+- [ ] `GET /api/v1/dashboard/realtime` — Live metrics from Redis/Actuator
+
+### Session 3: Account Enhancements (~30 min)
+- [ ] `GET /api/v1/accounts` — List accounts for current JWT user
+- [ ] `DELETE /api/v1/accounts/{id}` — Soft-close account (status→CLOSED)
+- [ ] `GET /api/v1/accounts/{id}/balance/history` — Query transactions for balance timeline
+- [ ] `POST /api/v1/accounts/{id}/freeze` — Set status→FROZEN
+- [ ] `POST /api/v1/accounts/{id}/unfreeze` — Set status→ACTIVE
+- [ ] `GET /api/v1/accounts/{id}/statement` — Build statement from transactions
+
+### Session 4: Transaction Enhancements (~30 min)
+- [ ] `GET /api/v1/transactions` — Current user's transactions (from JWT)
+- [ ] `GET /api/v1/transactions/{id}/status` — Lightweight status-only response
+- [ ] `GET /api/v1/transactions/{id}/timeline` — Build from audit log
+- [ ] `GET /api/v1/transactions/export` — CSV generation with filters
+
+---
+
+## DAY 2 — Settings + Payments + Admin + Monitoring
+
+### Session 5: Settings Controller (~45 min)
+- [ ] Create `SettingsController` + `SettingsService`
+- [ ] `GET /api/v1/settings/profile` — Return current user profile
+- [ ] `PATCH /api/v1/settings/profile` — Update name, phone
+- [ ] `POST /api/v1/settings/profile/avatar` — Multipart file upload (store path)
+- [ ] `DELETE /api/v1/settings/profile/avatar` — Remove avatar
+- [ ] `POST /api/v1/settings/security/password` — Validate old, set new password
+- [ ] `POST /api/v1/settings/security/2fa/enable` — Generate TOTP secret + QR
+- [ ] `POST /api/v1/settings/security/2fa/verify` — Verify code, activate 2FA
+- [ ] `GET /api/v1/settings/notifications` — Get preferences (from user entity or new table)
+- [ ] `PUT /api/v1/settings/notifications` — Update preferences
+
+### Session 6: Payments Controller (~30 min)
+- [ ] Create `PaymentController` + `PaymentService`
+- [ ] `GET /api/v1/payments` — List payments (maps to transactions with type=PAYMENT)
+- [ ] `GET /api/v1/payments/{id}` — Payment detail
+- [ ] `POST /api/v1/payments` — Initiate payment (delegates to TransactionService)
+- [ ] `POST /api/v1/payments/{id}/confirm` — 2-step confirm
+- [ ] `POST /api/v1/payments/{id}/retry` — Retry failed
+- [ ] `POST /api/v1/payments/{id}/cancel` — Cancel pending
+
+### Session 7: Admin Controller (~45 min)
+- [ ] Create `AdminController` + `AdminService`
+- [ ] `GET /api/v1/admin/dashboard/stats` — System-wide metrics
+- [ ] `GET /api/v1/admin/dashboard/processing-rate` — TPS over time
+- [ ] `GET /api/v1/admin/dashboard/latency` — p50/p95/p99 from Micrometer
+- [ ] `GET /api/v1/admin/users` — Paginated user list
+- [ ] `GET /api/v1/admin/users/{id}` — Full user detail + accounts
+- [ ] `PATCH /api/v1/admin/users/{id}` — Suspend/activate user
+- [ ] `GET /api/v1/admin/transactions` — All transactions (admin filter)
+- [ ] `POST /api/v1/admin/transactions/{id}/override` — Force status change
+- [ ] `GET /api/v1/admin/audit-log` — Query AuditLog entity
+- [ ] `POST /api/v1/admin/transactions/bulk-retry` — Batch retry
+
+### Session 8: Monitoring Controller (~20 min)
+- [ ] Create `MonitoringController` (wraps Actuator/Micrometer)
+- [ ] `GET /api/v1/admin/monitoring/health` — Aggregate health from actuator
+- [ ] `GET /api/v1/admin/monitoring/response-times` — Micrometer timer percentiles
+- [ ] `GET /api/v1/admin/monitoring/error-rates` — Error counter data
+- [ ] `GET /api/v1/admin/monitoring/kafka-lag` — Kafka consumer group lag
+- [ ] `GET /api/v1/admin/monitoring/alerts` — Alert list (from config/Redis)
+
+### Session 9: Final Verification (~15 min)
+- [ ] Run full test suite
+- [ ] Start backend + frontend, verify login flow end-to-end
+- [ ] Spot-check dashboard, accounts, transactions pages
+
+---
+
+## Architecture Notes
+- All new controllers: `@PreAuthorize` for role-based access
+- Admin endpoints: `hasRole('ADMIN')` only
+- Current user resolution: Extract from `SecurityContextHolder` → `JwtAuthenticationFilter` already sets this
+- Dashboard queries: Use existing repositories with `@Query` aggregations
+- Statement/Export: Use `StreamingResponseBody` for large data
+- 2FA: Use TOTP library (e.g., `dev.samstevens.totp`)
+- Monitoring: Wrap `MeterRegistry` from Micrometer (already in project)

@@ -19,5 +19,7 @@ public interface AccountMapper {
     Account toEntity(CreateAccountRequest request);
 
     @Mapping(source = "user.id", target = "userId")
+    @Mapping(source = "balance", target = "availableBalance")
+    @Mapping(source = "updatedAt", target = "lastActivityAt")
     AccountResponse toResponse(Account account);
 }

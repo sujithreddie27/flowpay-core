@@ -1,5 +1,6 @@
 package com.flowpay.transaction.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.flowpay.common.enums.AccountStatus;
 import com.flowpay.common.enums.AccountType;
 import lombok.AllArgsConstructor;
@@ -17,16 +18,19 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AccountResponse {
 
     private UUID id;
     private UUID userId;
     private String accountNumber;
     private BigDecimal balance;
+    private BigDecimal availableBalance;
     private String currency;
     private AccountType accountType;
     private AccountStatus status;
     private BigDecimal dailyLimit;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+    private OffsetDateTime lastActivityAt;
 }

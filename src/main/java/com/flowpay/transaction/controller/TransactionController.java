@@ -147,7 +147,8 @@ public class TransactionController {
     })
     public ResponseEntity<ApiResponse<TransactionResponse>> reverseTransaction(
             @Parameter(description = "Transaction UUID") @PathVariable UUID transactionId,
-            @Parameter(description = "Reason for reversal") @RequestParam(required = false, defaultValue = "Manual reversal") String reason) {
+            @RequestBody(required = false) ReverseTransactionRequest request) {
+        String reason = (request != null && request.getReason() != null) ? request.getReason() : "Manual reversal";
         TransactionResponse response = transactionService.reverseTransaction(transactionId, reason);
         return ResponseEntity.ok(ApiResponse.success(response, "Transaction reversed successfully"));
     }
