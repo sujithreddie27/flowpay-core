@@ -2,10 +2,8 @@ package com.flowpay.transaction.controller;
 
 import com.flowpay.common.dto.ApiResponse;
 import com.flowpay.common.dto.PagedResponse;
-import com.flowpay.transaction.dto.AccountResponse;
-import com.flowpay.transaction.dto.BalanceOperationRequest;
-import com.flowpay.transaction.dto.CreateAccountRequest;
-import com.flowpay.transaction.dto.UpdateAccountRequest;
+import com.flowpay.security.CustomUserDetails;
+import com.flowpay.transaction.dto.*;
 import com.flowpay.transaction.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,12 +15,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -159,5 +160,63 @@ public class AccountController {
             @Parameter(description = "User UUID") @PathVariable UUID userId) {
         BigDecimal totalBalance = accountService.getTotalBalance(userId);
         return ResponseEntity.ok(ApiResponse.success(totalBalance));
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Get current user's accounts", description = "List accounts for the authenticated user")
+    public ResponseEntity<ApiResponse<List<AccountResponse>>> getCurrentUserAccounts(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        List<AccountResponse> accounts = accountService.getAccountsByUserId(userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(accounts));
+    }
+
+    @DeleteMapping("/{accountId}")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Close account", description = "Soft-close an account by setting status to CLOSED")
+    public ResponseEntity<ApiResponse<AccountResponse>> closeAccount(
+            @Parameter(description = "Account UUID") @PathVariable UUID accountId) {
+        AccountResponse response = accountService.closeAccount(accountId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Account closed successfully"));
+    }
+
+    @GetMapping("/{accountId}/balance/history")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Get balance history", description = "Query transactions for balance timeline")
+    public ResponseEntity<ApiResponse<List<BalanceHistoryEntry>>> getBalanceHistory(
+            @Parameter(description = "Account UUID") @PathVariable UUID accountId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
+        List<BalanceHistoryEntry> history = accountService.getBalanceHistory(accountId, from, to);
+        return ResponseEntity.ok(ApiResponse.success(history));
+    }
+
+    @PostMapping("/{accountId}/freeze")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Freeze account", description = "Set account status to FROZEN")
+    public ResponseEntity<ApiResponse<AccountResponse>> freezeAccount(
+            @Parameter(description = "Account UUID") @PathVariable UUID accountId) {
+        AccountResponse response = accountService.freezeAccount(accountId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Account frozen successfully"));
+    }
+
+    @PostMapping("/{accountId}/unfreeze")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Unfreeze account", description = "Set account status back to ACTIVE")
+    public ResponseEntity<ApiResponse<AccountResponse>> unfreezeAccount(
+            @Parameter(description = "Account UUID") @PathVariable UUID accountId) {
+        AccountResponse response = accountService.unfreezeAccount(accountId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Account unfrozen successfully"));
+    }
+
+    @GetMapping("/{accountId}/statement")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Get account statement", description = "Build statement from transactions")
+    public ResponseEntity<ApiResponse<AccountStatementResponse>> getStatement(
+            @Parameter(description = "Account UUID") @PathVariable UUID accountId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
+        AccountStatementResponse response = accountService.getStatement(accountId, from, to);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

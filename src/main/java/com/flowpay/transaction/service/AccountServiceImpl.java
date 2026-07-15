@@ -8,12 +8,12 @@ import com.flowpay.common.exception.InsufficientFundsException;
 import com.flowpay.common.exception.ResourceNotFoundException;
 import com.flowpay.config.RedisConfig;
 import com.flowpay.monitoring.metrics.PaymentMetricsService;
-import com.flowpay.transaction.dto.AccountResponse;
-import com.flowpay.transaction.dto.CreateAccountRequest;
-import com.flowpay.transaction.dto.UpdateAccountRequest;
+import com.flowpay.transaction.dto.*;
 import com.flowpay.transaction.entity.Account;
+import com.flowpay.transaction.entity.Transaction;
 import com.flowpay.transaction.mapper.AccountMapper;
 import com.flowpay.transaction.repository.AccountRepository;
+import com.flowpay.transaction.repository.TransactionRepository;
 import io.micrometer.core.annotation.Timed;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +30,8 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -43,6 +45,7 @@ public class AccountServiceImpl implements AccountService {
     private final UserRepository userRepository;
     private final AccountMapper accountMapper;
     private final PaymentMetricsService paymentMetricsService;
+    private final TransactionRepository transactionRepository;
 
     @Override
     @Transactional
@@ -220,5 +223,143 @@ public class AccountServiceImpl implements AccountService {
             accountNumber = String.format("%010d", ThreadLocalRandom.current().nextLong(1_000_000_000L, 10_000_000_000L));
         } while (accountRepository.existsByAccountNumber(accountNumber));
         return accountNumber;
+    }
+
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT, key = "#accountId"),
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT_BALANCE, key = "#accountId")
+    })
+    public AccountResponse closeAccount(UUID accountId) {
+        Account account = findAccountOrThrow(accountId);
+        account.setStatus(AccountStatus.CLOSED);
+        Account saved = accountRepository.save(account);
+        log.info("Account closed: id={}", accountId);
+        return accountMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT, key = "#accountId"),
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT_BALANCE, key = "#accountId")
+    })
+    public AccountResponse freezeAccount(UUID accountId) {
+        Account account = findAccountOrThrow(accountId);
+        account.setStatus(AccountStatus.FROZEN);
+        Account saved = accountRepository.save(account);
+        log.info("Account frozen: id={}", accountId);
+        return accountMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT, key = "#accountId"),
+            @CacheEvict(value = RedisConfig.CACHE_ACCOUNT_BALANCE, key = "#accountId")
+    })
+    public AccountResponse unfreezeAccount(UUID accountId) {
+        Account account = findAccountOrThrow(accountId);
+        account.setStatus(AccountStatus.ACTIVE);
+        Account saved = accountRepository.save(account);
+        log.info("Account unfrozen: id={}", accountId);
+        return accountMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BalanceHistoryEntry> getBalanceHistory(UUID accountId, OffsetDateTime from, OffsetDateTime to) {
+        Account account = findAccountOrThrow(accountId);
+        if (from == null) from = OffsetDateTime.now().minusDays(30);
+        if (to == null) to = OffsetDateTime.now();
+
+        List<Transaction> sent = transactionRepository.findBySenderAccountId(accountId);
+        List<Transaction> received = transactionRepository.findByReceiverAccountId(accountId);
+
+        List<BalanceHistoryEntry> entries = new ArrayList<>();
+        BigDecimal runningBalance = account.getBalance();
+
+        for (Transaction t : sent) {
+            if (t.getCreatedAt().isAfter(from) && t.getCreatedAt().isBefore(to)) {
+                entries.add(BalanceHistoryEntry.builder()
+                        .date(t.getCreatedAt())
+                        .change(t.getAmount().negate())
+                        .description(t.getDescription())
+                        .type("DEBIT")
+                        .referenceId(t.getReferenceId())
+                        .build());
+            }
+        }
+        for (Transaction t : received) {
+            if (t.getCreatedAt().isAfter(from) && t.getCreatedAt().isBefore(to)) {
+                entries.add(BalanceHistoryEntry.builder()
+                        .date(t.getCreatedAt())
+                        .change(t.getAmount())
+                        .description(t.getDescription())
+                        .type("CREDIT")
+                        .referenceId(t.getReferenceId())
+                        .build());
+            }
+        }
+
+        entries.sort((a, b) -> b.getDate().compareTo(a.getDate()));
+        return entries;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountStatementResponse getStatement(UUID accountId, OffsetDateTime from, OffsetDateTime to) {
+        Account account = findAccountOrThrow(accountId);
+        if (from == null) from = OffsetDateTime.now().minusDays(30);
+        if (to == null) to = OffsetDateTime.now();
+
+        List<Transaction> sent = transactionRepository.findBySenderAccountId(accountId);
+        List<Transaction> received = transactionRepository.findByReceiverAccountId(accountId);
+
+        List<AccountStatementResponse.StatementEntry> entries = new ArrayList<>();
+        BigDecimal runningBalance = account.getBalance();
+
+        final OffsetDateTime fromFinal = from;
+        final OffsetDateTime toFinal = to;
+
+        for (Transaction t : sent) {
+            if (t.getCreatedAt().isAfter(fromFinal) && t.getCreatedAt().isBefore(toFinal)) {
+                entries.add(AccountStatementResponse.StatementEntry.builder()
+                        .date(t.getCreatedAt())
+                        .referenceId(t.getReferenceId())
+                        .description(t.getDescription())
+                        .type("DEBIT")
+                        .debit(t.getAmount())
+                        .credit(null)
+                        .build());
+            }
+        }
+        for (Transaction t : received) {
+            if (t.getCreatedAt().isAfter(fromFinal) && t.getCreatedAt().isBefore(toFinal)) {
+                entries.add(AccountStatementResponse.StatementEntry.builder()
+                        .date(t.getCreatedAt())
+                        .referenceId(t.getReferenceId())
+                        .description(t.getDescription())
+                        .type("CREDIT")
+                        .debit(null)
+                        .credit(t.getAmount())
+                        .build());
+            }
+        }
+
+        entries.sort((a, b) -> a.getDate().compareTo(b.getDate()));
+
+        return AccountStatementResponse.builder()
+                .accountId(accountId)
+                .accountNumber(account.getAccountNumber())
+                .currency(account.getCurrency())
+                .openingBalance(BigDecimal.ZERO)
+                .closingBalance(account.getBalance())
+                .fromDate(from)
+                .toDate(to)
+                .totalTransactions(entries.size())
+                .entries(entries)
+                .build();
     }
 }

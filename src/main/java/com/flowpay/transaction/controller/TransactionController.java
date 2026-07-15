@@ -3,6 +3,7 @@ package com.flowpay.transaction.controller;
 import com.flowpay.common.dto.ApiResponse;
 import com.flowpay.common.dto.PagedResponse;
 import com.flowpay.common.ratelimit.RateLimited;
+import com.flowpay.security.CustomUserDetails;
 import com.flowpay.transaction.dto.*;
 import com.flowpay.transaction.service.BatchTransactionService;
 import com.flowpay.transaction.service.TransactionService;
@@ -14,9 +15,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
@@ -227,5 +231,46 @@ public class TransactionController {
         batchTransactionService.processBatchAsync(request);
         return ResponseEntity.accepted()
                 .body(ApiResponse.success("Batch submitted for async processing"));
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Get current user's transactions", description = "List transactions for the authenticated user")
+    public ResponseEntity<ApiResponse<PagedResponse<TransactionResponse>>> getCurrentUserTransactions(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @ModelAttribute TransactionFilterRequest filter) {
+        Page<TransactionResponse> page = transactionService.getTransactionsByUserId(userDetails.getUserId(), filter);
+        return ResponseEntity.ok(ApiResponse.success(PagedResponse.from(page)));
+    }
+
+    @GetMapping("/{transactionId}/status")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Get transaction status", description = "Lightweight status-only response")
+    public ResponseEntity<ApiResponse<TransactionStatusResponse>> getTransactionStatus(
+            @Parameter(description = "Transaction UUID") @PathVariable UUID transactionId) {
+        TransactionStatusResponse response = transactionService.getTransactionStatus(transactionId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/{transactionId}/timeline")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Get transaction timeline", description = "Build timeline from audit log")
+    public ResponseEntity<ApiResponse<TransactionTimelineResponse>> getTransactionTimeline(
+            @Parameter(description = "Transaction UUID") @PathVariable UUID transactionId) {
+        TransactionTimelineResponse response = transactionService.getTransactionTimeline(transactionId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @Operation(summary = "Export transactions", description = "CSV generation with filters for current user")
+    public ResponseEntity<byte[]> exportTransactions(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @ModelAttribute TransactionFilterRequest filter) {
+        byte[] csvData = transactionService.exportTransactions(userDetails.getUserId(), filter);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("text/csv"));
+        headers.setContentDispositionFormData("attachment", "transactions.csv");
+        return new ResponseEntity<>(csvData, headers, HttpStatus.OK);
     }
 }

@@ -36,4 +36,10 @@ public interface TransactionService {
     List<TransactionResponse> getRetryableTransactions();
 
     int processStalePendingTransactions();
+
+    TransactionStatusResponse getTransactionStatus(UUID transactionId);
+
+    TransactionTimelineResponse getTransactionTimeline(UUID transactionId);
+
+    byte[] exportTransactions(UUID userId, TransactionFilterRequest filter);
 }

@@ -570,4 +570,101 @@ public class TransactionServiceImpl implements TransactionService {
     private String generateReferenceId() {
         return "TXN-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TransactionStatusResponse getTransactionStatus(UUID transactionId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new TransactionNotFoundException(transactionId));
+        return TransactionStatusResponse.builder()
+                .id(transaction.getId())
+                .referenceId(transaction.getReferenceId())
+                .status(transaction.getStatus())
+                .updatedAt(transaction.getUpdatedAt())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TransactionTimelineResponse getTransactionTimeline(UUID transactionId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new TransactionNotFoundException(transactionId));
+
+        List<TransactionTimelineResponse.TimelineEntry> timeline = new ArrayList<>();
+
+        // Created
+        timeline.add(TransactionTimelineResponse.TimelineEntry.builder()
+                .timestamp(transaction.getCreatedAt())
+                .action("CREATED")
+                .description("Transaction initiated")
+                .build());
+
+        // Processing (if not still pending)
+        if (transaction.getStatus() != TransactionStatus.PENDING) {
+            timeline.add(TransactionTimelineResponse.TimelineEntry.builder()
+                    .timestamp(transaction.getCreatedAt().plusSeconds(1))
+                    .action("PROCESSING")
+                    .description("Transaction is being processed")
+                    .build());
+        }
+
+        // Final state
+        if (transaction.getStatus() == TransactionStatus.COMPLETED && transaction.getProcessedAt() != null) {
+            timeline.add(TransactionTimelineResponse.TimelineEntry.builder()
+                    .timestamp(transaction.getProcessedAt())
+                    .action("COMPLETED")
+                    .description("Transaction completed successfully")
+                    .build());
+        } else if (transaction.getStatus() == TransactionStatus.FAILED) {
+            timeline.add(TransactionTimelineResponse.TimelineEntry.builder()
+                    .timestamp(transaction.getUpdatedAt())
+                    .action("FAILED")
+                    .description(transaction.getFailureReason() != null ? transaction.getFailureReason() : "Transaction failed")
+                    .build());
+        } else if (transaction.getStatus() == TransactionStatus.CANCELLED) {
+            timeline.add(TransactionTimelineResponse.TimelineEntry.builder()
+                    .timestamp(transaction.getUpdatedAt())
+                    .action("CANCELLED")
+                    .description("Transaction was cancelled")
+                    .build());
+        } else if (transaction.getStatus() == TransactionStatus.REVERSED) {
+            timeline.add(TransactionTimelineResponse.TimelineEntry.builder()
+                    .timestamp(transaction.getUpdatedAt())
+                    .action("REVERSED")
+                    .description("Transaction was reversed")
+                    .build());
+        }
+
+        return TransactionTimelineResponse.builder()
+                .transactionId(transactionId)
+                .referenceId(transaction.getReferenceId())
+                .timeline(timeline)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] exportTransactions(UUID userId, TransactionFilterRequest filter) {
+        Pageable pageable = PageRequest.of(0, 10000, Sort.by("createdAt").descending());
+        Page<Transaction> page = transactionRepository.findByUserId(userId, pageable);
+
+        StringBuilder csv = new StringBuilder();
+        csv.append("ID,Reference,Status,Type,Amount,Currency,Fee,Description,Created At\n");
+
+        for (Transaction t : page.getContent()) {
+            csv.append(String.format("%s,%s,%s,%s,%s,%s,%s,\"%s\",%s\n",
+                    t.getId(),
+                    t.getReferenceId(),
+                    t.getStatus(),
+                    t.getType(),
+                    t.getAmount(),
+                    t.getCurrency(),
+                    t.getFee(),
+                    t.getDescription() != null ? t.getDescription().replace("\"", "\"\"") : "",
+                    t.getCreatedAt()
+            ));
+        }
+
+        return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
 }

@@ -12,18 +12,21 @@ import com.flowpay.security.JwtProperties;
 import com.flowpay.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -36,6 +39,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     @Transactional
@@ -136,5 +140,63 @@ public class AuthServiceImpl implements AuthService {
                 jwtProperties.getAccessTokenExpiration() / 1000,
                 userMapper.toResponse(user)
         );
+    }
+
+    @Override
+    public void logout(LogoutRequest request) {
+        String refreshToken = request.getRefreshToken();
+
+        if (jwtTokenProvider.validateToken(refreshToken)) {
+            String key = "blacklist:token:" + refreshToken;
+            long expiration = jwtProperties.getRefreshTokenExpiration() / 1000;
+            stringRedisTemplate.opsForValue().set(key, "blacklisted", expiration, TimeUnit.SECONDS);
+            log.info("Refresh token blacklisted successfully");
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserResponse getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserDetails userDetails)) {
+            throw new AuthenticationFailedException("Not authenticated");
+        }
+
+        User user = userRepository.findById(userDetails.getUserId())
+                .orElseThrow(() -> new AuthenticationFailedException("User not found"));
+        return userMapper.toResponse(user);
+    }
+
+    @Override
+    public TokenVerifyResponse verifyToken(String token) {
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+
+        boolean valid = jwtTokenProvider.validateToken(token);
+        if (!valid) {
+            return TokenVerifyResponse.builder().valid(false).build();
+        }
+
+        UUID userId = jwtTokenProvider.getUserIdFromToken(token);
+        String email = jwtTokenProvider.getEmailFromToken(token);
+
+        return TokenVerifyResponse.builder()
+                .valid(true)
+                .userId(userId)
+                .email(email)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void requestPasswordReset(PasswordResetRequest request) {
+        userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+            String resetToken = UUID.randomUUID().toString();
+            String key = "password-reset:" + resetToken;
+            stringRedisTemplate.opsForValue().set(key, user.getId().toString(), 1, TimeUnit.HOURS);
+            log.info("Password reset token generated for userId={}, token={}", user.getId(), resetToken);
+        });
+        // Always return success to prevent email enumeration
     }
 }

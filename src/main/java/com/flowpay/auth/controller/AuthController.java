@@ -58,4 +58,33 @@ public class AuthController {
         AuthResponse response = authService.refreshToken(request);
         return ResponseEntity.ok(ApiResponse.success(response, "Token refreshed successfully"));
     }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout user", description = "Blacklist the refresh token to invalidate the session")
+    public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody LogoutRequest request) {
+        authService.logout(request);
+        return ResponseEntity.ok(ApiResponse.success(null, "Logged out successfully"));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Get current user", description = "Return the profile of the authenticated user")
+    public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser() {
+        UserResponse response = authService.getCurrentUser();
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/verify")
+    @Operation(summary = "Verify token", description = "Validate a JWT token and return claims")
+    public ResponseEntity<ApiResponse<TokenVerifyResponse>> verifyToken(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        TokenVerifyResponse response = authService.verifyToken(authHeader);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/password/reset-request")
+    @Operation(summary = "Request password reset", description = "Generate a password reset token and log it")
+    public ResponseEntity<ApiResponse<Void>> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+        authService.requestPasswordReset(request);
+        return ResponseEntity.ok(ApiResponse.success(null, "If the email exists, a reset link has been sent"));
+    }
 }

@@ -1,9 +1,6 @@
 package com.flowpay.auth.service;
 
-import com.flowpay.auth.dto.AuthResponse;
-import com.flowpay.auth.dto.CreateUserRequest;
-import com.flowpay.auth.dto.LoginRequest;
-import com.flowpay.auth.dto.RefreshTokenRequest;
+import com.flowpay.auth.dto.*;
 
 public interface AuthService {
 
@@ -12,4 +9,12 @@ public interface AuthService {
     AuthResponse login(LoginRequest request);
 
     AuthResponse refreshToken(RefreshTokenRequest request);
+
+    void logout(LogoutRequest request);
+
+    UserResponse getCurrentUser();
+
+    TokenVerifyResponse verifyToken(String token);
+
+    void requestPasswordReset(PasswordResetRequest request);
 }
