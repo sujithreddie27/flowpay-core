@@ -147,10 +147,15 @@ public class AccountController {
     @GetMapping("/{accountId}/balance")
     @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     @Operation(summary = "Get account balance", description = "Retrieve the current balance of an account")
-    public ResponseEntity<ApiResponse<BigDecimal>> getBalance(
+    public ResponseEntity<ApiResponse<BalanceResponse>> getBalance(
             @Parameter(description = "Account UUID") @PathVariable UUID accountId) {
-        BigDecimal balance = accountService.getBalance(accountId);
-        return ResponseEntity.ok(ApiResponse.success(balance));
+        AccountResponse account = accountService.getAccountById(accountId);
+        BalanceResponse response = BalanceResponse.builder()
+                .balance(account.getBalance())
+                .availableBalance(account.getAvailableBalance())
+                .currency(account.getCurrency())
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/user/{userId}/total-balance")
@@ -165,10 +170,13 @@ public class AccountController {
     @GetMapping
     @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     @Operation(summary = "Get current user's accounts", description = "List accounts for the authenticated user")
-    public ResponseEntity<ApiResponse<List<AccountResponse>>> getCurrentUserAccounts(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        List<AccountResponse> accounts = accountService.getAccountsByUserId(userDetails.getUserId());
-        return ResponseEntity.ok(ApiResponse.success(accounts));
+    public ResponseEntity<ApiResponse<PagedResponse<AccountResponse>>> getCurrentUserAccounts(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<AccountResponse> accountPage = accountService.getAccountsByUserId(userDetails.getUserId(), pageable);
+        return ResponseEntity.ok(ApiResponse.success(PagedResponse.from(accountPage)));
     }
 
     @DeleteMapping("/{accountId}")
