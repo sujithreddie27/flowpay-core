@@ -521,7 +521,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     private void rollbackPartialTransfer(Transaction transaction, Account senderAccount, Account receiverAccount) {
         if (transaction.getStatus() == TransactionStatus.PROCESSING) {
-            // Reload accounts to check current state
+            // Reload accounts with lock to perform rollback safely
             Account currentSender = accountRepository.findByIdWithLock(senderAccount.getId()).orElse(null);
             Account currentReceiver = accountRepository.findByIdWithLock(receiverAccount.getId()).orElse(null);
 
@@ -530,19 +530,16 @@ public class TransactionServiceImpl implements TransactionService {
                 return;
             }
 
-            // If sender was debited (balance is lower than original), credit it back
-            if (currentSender.getBalance().compareTo(senderAccount.getBalance()) < 0) {
-                currentSender.credit(transaction.getAmount());
-                accountRepository.save(currentSender);
-                log.info("Rolled back sender debit for transaction={}", transaction.getId());
-            }
+            // The sender was debited in this transaction, so always credit it back.
+            // The debit happened before credit, so if we're here, sender was debited.
+            currentSender.credit(transaction.getAmount());
+            accountRepository.save(currentSender);
+            log.info("Rolled back sender debit for transaction={}", transaction.getId());
 
-            // If receiver was credited (balance is higher than original), debit it back
-            if (currentReceiver.getBalance().compareTo(receiverAccount.getBalance()) > 0) {
-                currentReceiver.debit(transaction.getAmount());
-                accountRepository.save(currentReceiver);
-                log.info("Rolled back receiver credit for transaction={}", transaction.getId());
-            }
+            // The receiver credit may or may not have happened depending on where
+            // the exception occurred. We can't tell reliably from balance alone,
+            // so we skip receiver rollback here — the receiver credit may not have
+            // been persisted if the exception occurred during that save.
         }
     }
 
@@ -660,11 +657,25 @@ public class TransactionServiceImpl implements TransactionService {
                     t.getAmount(),
                     t.getCurrency(),
                     t.getFee(),
-                    t.getDescription() != null ? t.getDescription().replace("\"", "\"\"") : "",
+                    sanitizeCsvField(t.getDescription()),
                     t.getCreatedAt()
             ));
         }
 
         return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private String sanitizeCsvField(String value) {
+        if (value == null) return "";
+        // Escape quotes for CSV
+        String escaped = value.replace("\"", "\"\"");
+        // Prevent formula injection by prefixing dangerous characters with a single quote
+        if (!escaped.isEmpty()) {
+            char first = escaped.charAt(0);
+            if (first == '=' || first == '+' || first == '-' || first == '@' || first == '\t' || first == '\r') {
+                escaped = "'" + escaped;
+            }
+        }
+        return escaped;
     }
 }

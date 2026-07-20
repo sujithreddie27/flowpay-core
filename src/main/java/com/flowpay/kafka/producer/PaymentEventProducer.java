@@ -52,13 +52,13 @@ public class PaymentEventProducer {
 
     public void publishPaymentCancelled(Transaction transaction) {
         PaymentEvent event = buildEvent(transaction, PaymentEventType.PAYMENT_CANCELLED);
-        sendEvent(paymentFailedTopic, transaction.getId().toString(), event);
+        sendEvent(auditEventsTopic, transaction.getId().toString(), event);
     }
 
     public void publishPaymentReversed(Transaction transaction) {
         PaymentEvent event = buildEvent(transaction, PaymentEventType.PAYMENT_REVERSED);
         event.setFailureReason(transaction.getFailureReason());
-        sendEvent(paymentFailedTopic, transaction.getId().toString(), event);
+        sendEvent(auditEventsTopic, transaction.getId().toString(), event);
     }
 
     public void publishPaymentRetry(Transaction transaction) {

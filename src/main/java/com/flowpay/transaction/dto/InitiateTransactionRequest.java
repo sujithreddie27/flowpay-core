@@ -27,6 +27,7 @@ public class InitiateTransactionRequest {
     @JsonAlias({"accountId"})
     private UUID senderAccountId;
 
+    @NotNull(message = "Receiver account ID is required")
     @JsonAlias({"recipientId"})
     private UUID receiverAccountId;
 

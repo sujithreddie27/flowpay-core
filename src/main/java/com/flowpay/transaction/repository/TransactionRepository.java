@@ -164,7 +164,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
                                    @Param("endDate") OffsetDateTime endDate);
 
     /**
-     * Calculate total transaction amount for a user in a date range.
+     * Calculate total transaction amount for a user in a date range (COMPLETED only).
      */
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
            "WHERE t.sender.id = :userId AND t.status = 'COMPLETED' " +
@@ -172,6 +172,18 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
     BigDecimal getTotalAmountBySenderIdAndDateRange(@Param("userId") UUID userId,
                                                      @Param("startDate") OffsetDateTime startDate,
                                                      @Param("endDate") OffsetDateTime endDate);
+
+    /**
+     * Calculate total committed + in-flight transaction amount for daily limit checks.
+     * Includes PENDING, PROCESSING, and COMPLETED to prevent limit bypass via concurrent requests.
+     */
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
+           "WHERE t.sender.id = :userId " +
+           "AND t.status IN ('PENDING', 'PROCESSING', 'COMPLETED') " +
+           "AND t.createdAt BETWEEN :startDate AND :endDate")
+    BigDecimal getTotalCommittedAmountBySenderIdAndDateRange(@Param("userId") UUID userId,
+                                                             @Param("startDate") OffsetDateTime startDate,
+                                                             @Param("endDate") OffsetDateTime endDate);
 
     /**
      * Calculate total received amount for a user in a date range.

@@ -195,7 +195,7 @@ public class AuthServiceImpl implements AuthService {
             String resetToken = UUID.randomUUID().toString();
             String key = "password-reset:" + resetToken;
             stringRedisTemplate.opsForValue().set(key, user.getId().toString(), 1, TimeUnit.HOURS);
-            log.info("Password reset token generated for userId={}, token={}", user.getId(), resetToken);
+            log.info("Password reset token generated for userId={}", user.getId());
         });
         // Always return success to prevent email enumeration
     }

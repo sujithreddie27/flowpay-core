@@ -29,7 +29,7 @@ public class DailyLimitValidator implements PaymentValidator {
         OffsetDateTime startOfDay = LocalDate.now().atStartOfDay().atOffset(ZoneOffset.UTC);
         OffsetDateTime endOfDay = startOfDay.plusDays(1);
 
-        BigDecimal totalSentToday = transactionRepository.getTotalAmountBySenderIdAndDateRange(
+        BigDecimal totalSentToday = transactionRepository.getTotalCommittedAmountBySenderIdAndDateRange(
                 senderAccount.getUser().getId(), startOfDay, endOfDay);
 
         BigDecimal effectiveLimit = dailyLimit.multiply(BigDecimal.valueOf(dailyLimitMultiplier));

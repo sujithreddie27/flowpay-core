@@ -91,7 +91,12 @@ public class PaymentServiceImpl implements PaymentService {
                     transaction.getStatus(), TransactionStatus.PROCESSING);
         }
 
-        // Delegate actual processing to transaction service
+        // Transition to FAILED first so retryTransaction can process it
+        // (retryTransaction handles FAILED → PENDING → PROCESSING → COMPLETED)
+        transaction.setStatus(TransactionStatus.FAILED);
+        transaction.setFailureReason("Awaiting confirmation");
+        transactionRepository.save(transaction);
+
         return transactionService.retryTransaction(paymentId);
     }
 
