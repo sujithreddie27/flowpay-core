@@ -42,7 +42,8 @@ public class SecurityConfig {
             "/actuator/info",
             "/v3/api-docs/**",
             "/swagger-ui/**",
-            "/swagger-ui.html"
+            "/swagger-ui.html",
+            "/error"
     };
 
     @Bean
@@ -84,7 +85,7 @@ public class SecurityConfig {
                 "https://*.flowpay.com"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-ID", "X-Idempotency-Key"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-ID", "X-Idempotency-Key", "X-Request-Time"));
         configuration.setExposedHeaders(List.of("X-Request-ID", "X-RateLimit-Remaining", "X-RateLimit-Limit"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);

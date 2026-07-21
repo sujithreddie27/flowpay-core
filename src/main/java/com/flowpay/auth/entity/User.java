@@ -78,6 +78,15 @@ public class User extends BaseEntity {
     @Column(name = "last_login_at")
     private OffsetDateTime lastLoginAt;
 
+    @PrePersist
+    private void setDefaults() {
+        if (status == null) status = UserStatus.ACTIVE;
+        if (kycStatus == null) kycStatus = KycStatus.PENDING;
+        if (role == null) role = UserRole.USER;
+        if (emailVerified == null) emailVerified = false;
+        if (phoneVerified == null) phoneVerified = false;
+    }
+
     /**
      * Get full name of the user.
      */

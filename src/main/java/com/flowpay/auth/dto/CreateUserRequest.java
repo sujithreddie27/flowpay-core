@@ -43,6 +43,6 @@ public class CreateUserRequest {
     public String getLastName() {
         if (name == null || name.isBlank()) return "";
         String[] parts = name.trim().split("\\s+", 2);
-        return parts.length > 1 ? parts[1] : "";
+        return parts.length > 1 ? parts[1] : parts[0];
     }
 }

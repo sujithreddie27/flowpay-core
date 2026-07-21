@@ -23,7 +23,7 @@ public class JacksonConfig {
         return new Jackson2ObjectMapperBuilder()
                 .featuresToEnable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
                 .featuresToDisable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .modules(enumLowercaseModule());
+                .modulesToInstall(enumLowercaseModule());
     }
 
     @Bean
