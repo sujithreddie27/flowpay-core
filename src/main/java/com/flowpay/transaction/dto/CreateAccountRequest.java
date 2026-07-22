@@ -18,7 +18,6 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CreateAccountRequest {
 
-    @NotNull(message = "User ID is required")
     private UUID userId;
 
     @NotBlank(message = "Currency is required")

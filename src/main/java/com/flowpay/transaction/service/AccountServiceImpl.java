@@ -62,6 +62,8 @@ public class AccountServiceImpl implements AccountService {
 
         if (request.getDailyLimit() != null) {
             account.setDailyLimit(request.getDailyLimit());
+        } else if (account.getDailyLimit() == null) {
+            account.setDailyLimit(new BigDecimal("10000.0000"));
         }
 
         Account saved = accountRepository.save(account);

@@ -43,7 +43,17 @@ public class AccountController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request")
     })
     public ResponseEntity<ApiResponse<AccountResponse>> createAccount(
-            @Valid @RequestBody CreateAccountRequest request) {
+            @Valid @RequestBody CreateAccountRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        // Auto-fill userId from authenticated user if not provided
+        if (request.getUserId() == null) {
+            request = CreateAccountRequest.builder()
+                    .userId(currentUser.getUserId())
+                    .accountType(request.getAccountType())
+                    .currency(request.getCurrency())
+                    .dailyLimit(request.getDailyLimit())
+                    .build();
+        }
         AccountResponse response = accountService.createAccount(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Account created successfully"));
